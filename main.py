@@ -56,6 +56,7 @@ class ParteDTO(BaseModel):
     status: str = "active"
     signature: str = ""  # almaceno la firma en str y la parseo luego !!
     parteDate: datetime.datetime  # ¡CAMBIADO AQUÍ! (o déjalo como str si realmente no necesitas el objeto datetime)
+    comentarios: str = ""
 
 
 db_managers: List[Manager] = [
@@ -101,6 +102,13 @@ async def get_partes():
     return db_partes
 
 
+@app.get("/api/partes/{id}")
+async def get_parte(id: int):
+    for parte in db_partes:
+        if parte.id == id:
+            return parte
+
+
 @app.get("/api/managers")
 async def get_managers():
     return db_managers
@@ -126,7 +134,8 @@ async def create_partes(parte: ParteDTO):
 
 @app.get("/api/partes/lastId")
 async def get_last_id():
-    return db_partes[-1].id+1
+    return db_partes[-1].id + 1
+
 
 def handle_signature(parte: ParteDTO):
     firma = parte.signature

@@ -1,9 +1,14 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from typing import List
 import datetime
 from fastapi.middleware.cors import CORSMiddleware
 import base64
+
+from dto.ParteDTO import ParteDTO
+from entities.Manager import Manager
+from entities.Contact import Contact
+from entities.Project import ProyectoObra
+from entities.Actividad import Actividades
 
 origins = [
     "http://localhost.tiangolo.com",
@@ -12,51 +17,6 @@ origins = [
     "http://localhost:8080",
 ]
 
-
-class ParteObra(BaseModel):
-    id: int
-    title: str
-    description: str
-    status: str
-    createdAt: datetime.date
-
-
-class Contact(BaseModel):
-    id: str
-    title: str
-    phone: int
-    signature: str
-
-
-class Manager(BaseModel):
-    id: str
-    name: str
-
-
-class Actividades(BaseModel):
-    id: int
-    name: str
-    cantidad: int
-    unidad: str
-
-
-class ProyectoObra(BaseModel):
-    id: str
-    title: str
-    contact: Contact
-    teamManager: Manager
-    obraDate: datetime.datetime  # ¡CAMBIADO AQUÍ!
-
-
-class ParteDTO(BaseModel):
-    id: int
-    project: ProyectoObra
-    actividades: List[Actividades]
-    teamManager: Manager
-    status: str = "active"
-    signature: str = ""  # almaceno la firma en str y la parseo luego !!
-    parteDate: datetime.datetime  # ¡CAMBIADO AQUÍ! (o déjalo como str si realmente no necesitas el objeto datetime)
-    comentarios: str = ""
 
 
 db_managers: List[Manager] = [

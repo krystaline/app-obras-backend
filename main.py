@@ -47,7 +47,7 @@ db_partes: List[ParteDTO] = [
              project=db_proyectos[0], status="pending")
 ]
 app = FastAPI()
-
+# test
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

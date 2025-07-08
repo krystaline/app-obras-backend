@@ -46,6 +46,11 @@ class LineaPedidoPost(BaseModel):
     unidades_totales: float
     ya_certificado: int
 
+    # añadir
+    capitulo: int  # no sé de qué depende esto
+    idArticulo: int
+    # el idArticulo debería es el MO002, el id es 1, 2, 3
+
 
 class LineaPedidoDTO:
     model_config = ConfigDict(arbitrary_types_allowed=True)

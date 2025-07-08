@@ -24,9 +24,75 @@ def test_connection():
     return cursor.fetchall()
 
 
-def create_parte(parte: LineaPedidoPost):
+def create_parte(parte: ParteRecibidoPost):
     print(parte)
-    return None
+    for linea in parte.lineas:
+        handle_pers_partes(parte, linea)
+        handle_ofertas_cli(parte, linea)
+    return parte
+
+
+def handle_pers_partes(parte: ParteRecibidoPost, linea: LineaPedidoPost):
+    cur = conn.cursor()
+    sql_query = """
+                INSERT INTO pers_partes_app(idparte, idoferta, titulo, idlinea, idarticulo, descriparticulo, cantidad,
+                                            certificado) \
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) \
+                """
+    values = (
+        parte.id_parte,
+        parte.id_oferta,
+        linea.titulo,
+        linea.idLinea,
+        linea.idArticulo,
+        linea.descripArticulo,
+        linea.cantidad,
+        linea.ya_certificado
+    )
+    cur.execute(sql_query, values)
+
+    try:
+        cur.execute(sql_query, values)
+        # If you're using a connection object directly:
+        # connection.commit() # Don't forget to commit the changes if you're not in an auto-commit mode
+        print("Linea inserted successfully!")
+    except Exception as e:
+        # Handle exceptions (e.g., database errors)
+        print(f"Error inserting linea: {e}")
+        # connection.rollback() # Rollback in case of an error
+
+    return parte
+
+
+def handle_ofertas_cli(parte: ParteRecibidoPost, linea: LineaPedidoPost):
+    cur = conn.cursor()
+    sql_query = """
+                INSERT INTO ofertas_cli_cabecera(idparte, capitulo, idArticulo, descripcion, cantidad, unidad_medida,
+                                                 certificado) \
+                Values (%s, %s, %s, %s, %s, %s, %s) \
+                """
+    values = (
+        parte.idParte,
+        linea.capitulo,
+        linea.idArticulo,
+        linea.descripcion,
+        linea.cantidad,
+        linea.unidad_medida,
+        linea.ya_certificado,
+    )
+    cur.execute(sql_query, values)
+
+    try:
+        cur.execute(sql_query, values)
+        # If you're using a connection object directly:
+        # connection.commit() # Don't forget to commit the changes if you're not in an auto-commit mode
+        print("Linea inserted successfully!")
+    except Exception as e:
+        # Handle exceptions (e.g., database errors)
+        print(f"Error inserting linea: {e}")
+        # connection.rollback() # Rollback in case of an error
+
+    return parte
 
 
 def create_lineas(lineas: list):
@@ -37,9 +103,9 @@ def create_lineas(lineas: list):
 
 def create_linea(linea: LineaPedidoDTO):
     sql_query = """
-                INSERT INTO pers_partes_certificacion_lineas(idparte, idoferta, titulo, idlinea,
-                                                             descriparticulo, cantidad, unidadmedica, certificado,
-                                                             fechainsertupdate)
+                INSERT INTO pers_partes_app(idparte, idoferta, titulo, idlinea,
+                                            descriparticulo, cantidad, unidadmedica, certificado,
+                                            fechainsertupdate)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) \
                 """
 

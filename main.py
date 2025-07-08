@@ -5,7 +5,7 @@ from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from db.db_connection import get_lineas, get_ofertas, get_num_parte
+from db.db_connection import get_lineas, get_ofertas, get_num_parte, get_linea_por_oferta
 from db.db_queries import test_connection, create_parte
 from dto.ParteDTO import ParteDTO, ParteRecibidoPost
 from entities.Actividad import Actividades
@@ -149,7 +149,7 @@ async def create_partes(parte: ParteRecibidoPost) -> ParteRecibidoPost:
     #  parte.id = db_partes[-1].id + 1
     print(parte)
     handle_signature(parte)
-    #  create_parte(parte)
+    create_parte(parte)
     #   db_partes.append(parte)
     # create_part(parte)
     return parte
@@ -163,12 +163,8 @@ async def listar_lineas():
 
 @app.get("/api/lineas/{idoferta}")
 async def listar_lineas_oferta(idoferta: int):
-    lista = []
-
-    for linea in lista_lineas:
-        if linea.get('ocl_IdOferta') == idoferta:
-            lista.append(linea)
-
+    lista = get_linea_por_oferta(idoferta)
+    print(lista)
     return lista
 
 
@@ -182,7 +178,7 @@ async def listar_linea_oferta(idoferta: int, idlinea: int):
 
 @app.get("/api/partes/lastId")
 async def get_last_id():
-    return get_num_parte()+1
+    return get_num_parte() + 1
 
 
 def handle_signature(parte: ParteRecibidoPost):

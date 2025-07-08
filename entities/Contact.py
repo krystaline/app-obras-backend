@@ -1,9 +1,7 @@
 from pydantic import BaseModel
 
 
-class Contact(BaseModel):
+class Cliente(BaseModel): # Esto en verdad son Clientes
     id: str
-    title: str
-    phone: int
-    signature: str
+    nombre: str
 

@@ -1,3 +1,4 @@
 firmas/
 .idea
 __pycache__/
+.env

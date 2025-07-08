@@ -1,17 +1,18 @@
+from typing import List, Optional, Any
 from pydantic import BaseModel
-from typing import List
-from entities.Actividad import Actividades
-from entities.Manager import Manager
-from entities.Project import ProyectoObra
-import datetime
+from entities.LineaPedido import LineaPedidoDTO, Linea_pedido, LineaPedidoPost
 
 
 class ParteDTO(BaseModel):
-    id: int
-    project: ProyectoObra
-    actividades: List[Actividades]
-    teamManager: Manager
-    status: str = "active"
-    signature: str = ""  # almaceno la firma en str y la parseo luego !!
-    parteDate: datetime.datetime  # ¡CAMBIADO AQUÍ! (o déjalo como str si realmente no necesitas el objeto datetime)
-    comentarios: str = ""
+    idOferta: Optional[int] = None  # Often id is None when creating a new item, then assigned by DB
+    idParte: Optional[int] = None
+    pdf: str
+    signature: str = ""
+
+
+class ParteRecibidoPost(BaseModel):
+    id_oferta: int
+    id_parte: int
+    signature: str = ""
+    lineas: List[LineaPedidoPost] = []
+    comentarios: Optional[str] = ''

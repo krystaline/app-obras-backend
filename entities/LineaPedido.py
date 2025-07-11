@@ -1,4 +1,6 @@
-from pydantic import ConfigDict, BaseModel
+from typing import Optional
+
+from pydantic import ConfigDict, BaseModel, Field
 
 
 class Linea_pedido:
@@ -37,22 +39,23 @@ class Linea_pedido:
 
 
 class LineaPedidoPost(BaseModel):
-    id: int
-    id_parte: int
-    id_oferta: int
+    id: int # Parece ser el 'ocl_idlinea' o 'IdLinea'
+    id_parte: int # Se refiere al Id del parte de obra al que pertenece
+    id_oferta: int # Cambiado a int, asumiendo que es un ID numérico
     descripcion: str
-    medida: str
-    unidades_puestas_hoy: float
-    unidades_totales: float
-    ya_certificado: int
+    medida: str # Esto se mapea a 'unidadMedida' en LineaPedidoPDF
+    unidades_puestas_hoy: float # Cantidad puesta hoy
+    unidades_totales: float # Cantidad total (ofertada)
+    ya_certificado: int # 0 o 1, podría ser bool
 
-    # añadir
-    capitulo: int  # no sé de qué depende esto
-    idArticulo: int
-    # el idArticulo debería es el MO002, el id es 1, 2, 3
+    capitulo: Optional[int] = None # Si es opcional
+    idArticulo: Optional[str] = None # 'ocl_IdArticulo' o similar
 
 
 class LineaPedidoDTO:
+    # Esta clase parece redundante si usas LineaPedidoPost y LineaPedidoPDF
+    # Si su propósito es mapear algo de la DB, mejor que sea un BaseModel de Pydantic
+    # para aprovechar la validación. Si es una entidad de DB, podría ser más clara.
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __init__(self, **kwargs):
@@ -60,10 +63,22 @@ class LineaPedidoDTO:
         self.id_parte = kwargs.get('id_parte')
         self.id_oferta = kwargs.get('id_oferta')
         self.descripcion = kwargs.get('descripcion')
-        self.unidades_totales = kwargs.get('unidades_totales')  # se llama de otra manera
-        self.medida = kwargs.get('medida')  # se llama de otra manera
-        self.unidades_puestas_hoy = kwargs.get('unidades_puestas_hoy')  # idem
+        self.unidades_totales = kwargs.get('unidades_totales')
+        self.medida = kwargs.get('medida')
+        self.unidades_puestas_hoy = kwargs.get('unidades_puestas_hoy')
         self.ya_certificado = kwargs.get('ya_certificado')
 
     def __repr__(self):
-        return f"ba"
+        return f"LineaPedidoDTO(id={self.id}, descripcion={self.descripcion})"
+
+
+# **Modelo ajustado para la impresión de PDF y lectura de DB**
+class LineaPedidoPDF(BaseModel):
+    # Asegúrate que estos nombres coincidan con los 'AS' en tus consultas SQL
+    id: int = Field(..., alias="IdLinea") # O el nombre de la columna en la DB para el ID de línea
+    descripcion: str = Field(..., alias="DescripArticulo")
+    cantidad: float = Field(..., alias="cantidad") # Este es el campo que se usa en pdf_manager para 'Cant.'
+    unidadMedida: str = Field(..., alias="UnidadMedida") # Este es el campo que se usa en pdf_manager para 'Unid.'
+
+    class Config:
+        populate_by_name = True

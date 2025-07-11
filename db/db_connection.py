@@ -1,127 +1,87 @@
 import datetime
-
-# import psycopg2
 import os
-from os import getenv
-
 import pyodbc
 from dotenv import load_dotenv
-import json
-# from psycopg2.extras import RealDictCursor
 
+from db.database import get_db_connection # Importa la función de conexión
 from entities.Project import ProyectoObra
 
 load_dotenv()
 
-connection_string = f'DRIVER={os.getenv('SQLS_NATIVE')};' \
-                    f'SERVER={'localhost'},{1433};' \
-                    f'DATABASE={'master'};' \
-                    f'UID={'sa'};' \
-                    f'PWD={os.getenv("CU_MSSQL_SA_PASSWORD")};' \
-                    f'TrustServerCertificate=Yes;'
-conn = pyodbc.connect(connection_string, autocommit=True)
-
+# Elimina la cadena de conexión global y la variable conn aquí
+# conn = pyodbc.connect(connection_string, autocommit=True)
 
 def get_all_partes():
+    # Implementar si es necesario, usando get_db_connection()
     return []
 
 
 def get_linea_por_oferta(idOferta: int):
+    conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        sql_query = """ select * from ofertas_cli_cabecera where ocl_idOferta = ? """
+        # Revisa el nombre de tu tabla y columnas
+        sql_query = """ SELECT * FROM ofertas_cli_cabecera WHERE ocl_idOferta = ? """
         cursor.execute(sql_query, idOferta)
-
-        # Fetch all rows
         rows = cursor.fetchall()
-
-        # Get column names from the cursor description
         columns = [column[0] for column in cursor.description]
-
-        # Convert rows to a list of dictionaries for easier access
-        data = []
-        for row in rows:
-            data.append(dict(zip(columns, row)))
-
-
+        data = [dict(zip(columns, row)) for row in rows]
         return data
-
-
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]
         print(f"Database error: {sqlstate}")
         print(f"Error details: {ex}")
         return None
+    finally:
+        conn.close()
 
 def get_lineas():
+    conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        sql_query = """
-                    select *
-                    from ofertas_cli_cabecera \
-                    """
+        sql_query = """ SELECT * FROM ofertas_cli_cabecera """
         cursor.execute(sql_query)
-
-        # Fetch all rows
         rows = cursor.fetchall()
-
-        # Get column names from the cursor description
         columns = [column[0] for column in cursor.description]
-
-        # Convert rows to a list of dictionaries for easier access
-        data = []
-        for row in rows:
-            data.append(dict(zip(columns, row)))
-
-
+        data = [dict(zip(columns, row)) for row in rows]
         return data
-
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]
         print(f"Database error: {sqlstate}")
         print(f"Error details: {ex}")
         return None
+    finally:
+        conn.close()
 
 
 def get_ofertas():
+    conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        sql_query = """
-                    SELECT *
-                    from ofertas_app_v2
-                    order by idOferta desc \
-                    """
+        sql_query = """ SELECT * FROM ofertas_app_v2 ORDER BY idOferta DESC """
         cursor.execute(sql_query)
-
-        # Fetch all rows
         rows = cursor.fetchall()
-
-        # Get column names from the cursor description
         columns = [column[0] for column in cursor.description]
-
-        # Convert rows to a list of dictionaries for easier access
-        data = []
-        for row in rows:
-            data.append(dict(zip(columns, row)))
+        data = [dict(zip(columns, row)) for row in rows]
         return data
-
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]
         print(f"Database error: {sqlstate}")
         print(f"Error details: {ex}")
         return None
-
+    finally:
+        conn.close()
 
 def load_db():
     get_ofertas()
 
 
 def get_num_parte():
-    cursor = conn.cursor()
-    sql_query = """
-                select max(cast(IdParte as integer))
-                from pers_partes_app \
-                    
-                """
-    cursor.execute(sql_query)
-    return cursor.fetchval()
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        sql_query = """ SELECT MAX(CAST(IdParte AS INTEGER)) FROM pers_partes_app """
+        cursor.execute(sql_query)
+        return cursor.fetchval()
+    finally:
+        conn.close()

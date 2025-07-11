@@ -2,17 +2,18 @@ import base64
 import datetime
 from typing import List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import ValidationError
 
 from db.db_connection import get_lineas, get_ofertas, get_num_parte, get_linea_por_oferta
-from db.db_queries import test_connection, create_parte
-from dto.ParteDTO import ParteDTO, ParteRecibidoPost
+from db.db_queries import test_connection, create_parte, create_pdf_file, get_lineas_pdf, get_parte_pdf
+from dto.ParteDTO import ParteDTO, ParteRecibidoPost, ParteImprimirPDF
 from entities.Actividad import Actividades
 from entities.Contact import Cliente
 from entities.Oferta import Oferta
 from entities.Project import ProyectoObra
-from entities.LineaPedido import Linea_pedido
+from entities.LineaPedido import Linea_pedido, LineaPedidoPost, LineaPedidoPDF
 
 origins = [
     "http://localhost.tiangolo.com",
@@ -100,7 +101,15 @@ lista_lineas = get_lineas()
 
 def parse_ofertas() -> List[Oferta]:
     ofertas = get_ofertas()
-    return ofertas
+    parsed_ofertas = []
+    for o in ofertas:
+        try:
+            # Asume que tu modelo Oferta puede inicializarse directamente con el diccionario
+            parsed_ofertas.append(Oferta(**o))
+        except ValidationError as e:
+            print(f"Error de validación para oferta: {o} - {e}")
+            # Decide si ignorar o manejar el error
+    return parsed_ofertas
 
 
 def parsear_datos(lista):
@@ -144,15 +153,62 @@ async def listar_ofertas():
     return lista
 
 
+db_partes = []
+
+
 @app.post("/api/partes")
-async def create_partes(parte: ParteRecibidoPost) -> ParteRecibidoPost:
-    #  parte.id = db_partes[-1].id + 1
+async def create_partes(parte: ParteImprimirPDF) -> ParteImprimirPDF:
+    # La validación de Pydantic ya ocurre automáticamente al recibir el JSON
     print(parte)
-    handle_signature(parte)
-    create_parte(parte)
-    #   db_partes.append(parte)
-    # create_part(parte)
-    return parte
+    handle_signature(parte)  # Asegúrate que esta función use parte.signature correctamente
+    try:
+        # Pasa el objeto parte Pydantic directamente a tu función de DB
+        create_parte(parte)
+        # db_partes.append(parte) # Si db_partes es solo un cache en memoria, puedes seguir usándolo.
+        return parte
+    except Exception as e:
+        # Captura cualquier error que pueda haber sido relanzado desde db_queries
+        raise HTTPException(status_code=500, detail=f"Error al crear el parte de obra: {e}")
+
+
+@app.get("/api/partes/parte/{parteId}")
+async def get_parte(parteId: int):
+    # Obtener los datos del parte principal
+    parte_data_dict = get_parte_pdf(parteId)
+    if not parte_data_dict:
+        raise HTTPException(status_code=404, detail=f"Parte con ID {parteId} no encontrado.")
+
+    # Obtener las líneas asociadas
+    lineas_data_list = get_lineas_pdf(parteId)
+    validated_lineas = []
+    for line_dict in lineas_data_list:
+        try:
+            # Aquí Pydantic debe mapear 'id', 'descripcion', 'cantidad', 'unidadMedida'
+            # de tu LineaPedidoPDF con los alias de las columnas SQL
+            validated_lineas.append(LineaPedidoPDF(**line_dict))
+        except ValidationError as e:
+            print(f"Error de validación para una línea de pedido (ID Parte: {parteId}): {e} - Datos: {line_dict}")
+            # Decide cómo manejar esto: ¿Ignorar línea inválida o fallar la solicitud?
+            # Por ahora, la ignoramos.
+            continue
+
+    # Asignar las líneas validadas al diccionario de datos del parte
+    parte_data_dict["lineas"] = validated_lineas
+
+    try:
+        # Crear la instancia de ParteImprimirPDF desde el diccionario
+        # Pydantic debería usar los alias y `populate_by_name = True`
+        # para mapear correctamente las columnas de la DB a los campos del modelo.
+        parte_obj = ParteImprimirPDF(**parte_data_dict)
+    except ValidationError as e:
+        print(f"Error de validación al crear ParteImprimirPDF desde DB: {e}")
+        print(f"Datos del parte que causaron el error: {parte_data_dict}")
+        raise HTTPException(status_code=500,
+                            detail=f"Error interno del servidor: Fallo la validación de datos del parte principal - {e}")
+
+    # Si todo va bien, crea el PDF y retorna el objeto
+    create_pdf_file(parte_obj)
+    return parte_obj
 
 
 @app.get("/api/lineas")
@@ -163,9 +219,9 @@ async def listar_lineas():
 
 @app.get("/api/lineas/{idoferta}")
 async def listar_lineas_oferta(idoferta: int):
-    lista = get_linea_por_oferta(idoferta)
-    print(lista)
-    return lista
+    lista_dicts = get_linea_por_oferta(idoferta)
+    lista_objetos_linea = [Linea_pedido(**d) for d in lista_dicts]
+    return lista_objetos_linea
 
 
 @app.get('/api/lineas/{idoferta}/{idlinea}')
@@ -178,10 +234,10 @@ async def listar_linea_oferta(idoferta: int, idlinea: int):
 
 @app.get("/api/partes/lastId")
 async def get_last_id():
-    return get_num_parte() + 1
+    return get_num_parte()
 
 
-def handle_signature(parte: ParteRecibidoPost):
+def handle_signature(parte: ParteImprimirPDF):
     firma = parte.signature
     if "," in firma:
         header, encoded_data = firma.split(",", 1)
@@ -205,3 +261,9 @@ def handle_signature(parte: ParteRecibidoPost):
 @app.get("/api/queries")
 def qu():
     return test_connection()
+
+
+@app.post("/api/pdf")
+def create_pdf(parte: ParteImprimirPDF):
+    create_pdf_file(parte)
+    return None

@@ -1,8 +1,10 @@
 import base64
 import datetime
+from http.client import HTTPResponse
 from typing import List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
+
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
@@ -157,7 +159,7 @@ db_partes = []
 
 
 @app.post("/api/partes")
-async def create_partes(parte: ParteImprimirPDF) -> ParteImprimirPDF:
+async def create_partes(parte: ParteRecibidoPost) -> ParteRecibidoPost:
     # La validación de Pydantic ya ocurre automáticamente al recibir el JSON
     print(parte)
     handle_signature(parte)  # Asegúrate que esta función use parte.signature correctamente
@@ -207,7 +209,6 @@ async def get_parte(parteId: int):
                             detail=f"Error interno del servidor: Fallo la validación de datos del parte principal - {e}")
 
     # Si todo va bien, crea el PDF y retorna el objeto
-    create_pdf_file(parte_obj)
     return parte_obj
 
 
@@ -234,11 +235,12 @@ async def listar_linea_oferta(idoferta: int, idlinea: int):
 
 @app.get("/api/partes/lastId")
 async def get_last_id():
-    return get_num_parte()
+    print(get_num_parte() + 1)
+    return get_num_parte() + 1
 
 
-def handle_signature(parte: ParteImprimirPDF):
-    firma = parte.signature
+def handle_signature(parte: ParteRecibidoPost):
+    firma = parte.firma
     if "," in firma:
         header, encoded_data = firma.split(",", 1)
     else:
@@ -253,6 +255,7 @@ def handle_signature(parte: ParteImprimirPDF):
                   + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
                   + "_signature.png", "wb") as f:
             f.write(decoded_image_data)
+            # todo cambiar firma/pdf por la url de la imagen
 
     except Exception as e:
         print(f"Error al decodificar la firma: {e}")
@@ -263,7 +266,23 @@ def qu():
     return test_connection()
 
 
-@app.post("/api/pdf")
-def create_pdf(parte: ParteImprimirPDF):
-    create_pdf_file(parte)
-    return None
+@app.get("/api/pdf/{idParte}")
+async def create_pdf(idParte: int | str):
+    pp = await get_parte(idParte)
+    create_pdf_file(pp)
+    if pp:
+        return {"mensaje": "OK"}
+    else:
+        return status.HTTP_404_NOT_FOUND
+
+
+@app.get("/api/partes/all")
+async def get_all_partes_summary():
+    # Esta función necesitaría implementarse en db/db_queries.py
+    # para obtener una lista resumida de todos los partes de obra.
+    # Por ejemplo, podría devolver ParteImprimirPDF[] sin las líneas completas
+    # o un DTO más ligero con solo los campos principales.
+    # Ejemplo: return get_all_partes_from_db()
+    # Si no tienes esta función en db_queries.py, tendrías que crearla.
+    # Por ahora, no podemos listar todos los partes sin esto.
+    pass  #

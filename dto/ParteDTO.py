@@ -10,14 +10,20 @@ class ParteDTO(BaseModel):
     idOferta: Optional[int] = None
     idParte: Optional[int] = None
     pdf: str # ¿Esto es la ruta al PDF o el contenido binario? Si es contenido, mejor usar bytes o base64
-    signature: str = ""
+    firma: str = ""
 
 class ParteRecibidoPost(BaseModel):
-    id_oferta: int
-    id_parte: int
-    signature: str = ""
+    idoferta: int
+    nParte: int
+    firma: str = ""
     lineas: List[LineaPedidoPost] = [] # Asumiendo que LineaPedidoPost es para recibir datos de la UI
     comentarios: Optional[str] = ''
+    proyecto: str = ''
+    oferta: str
+    telefono : str
+    fecha: str
+    contacto_obra: str
+    jefe_equipo: str
 
 # **Modelo ajustado para la impresión de PDF y lectura de DB**
 class ParteImprimirPDF(BaseModel):
@@ -30,7 +36,7 @@ class ParteImprimirPDF(BaseModel):
     contacto_obra: str
     comentarios: Optional[str] = None # 'None' en lugar de un string vacío si es opcional y puede ser NULL
     lineas: List[LineaPedidoPDF] = [] # Asegúrate que esto se llene correctamente
-    signature: str = Field(..., alias="firma") # Si la columna en DB se llama 'firma'
+    firma: str = Field(..., alias="firma") # Si la columna en DB se llama 'firma'
     idoferta: int = Field(..., alias="idoferta")
 
     # Configuración para permitir la asignación por nombre de campo de la DB

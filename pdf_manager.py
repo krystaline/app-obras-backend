@@ -5,7 +5,6 @@ from typing import List, Optional
 
 from dto.ParteDTO import ParteImprimirPDF
 
-
 # Example data to fill the PDF
 
 def fill_parte_obra_pymupdf(template_pdf_path: str, output_pdf_path: str, data: ParteImprimirPDF):
@@ -17,7 +16,7 @@ def fill_parte_obra_pymupdf(template_pdf_path: str, output_pdf_path: str, data: 
         # --- Font and Color setup for PyMuPDF ---
         font_name = "helv"
         font_size_general = 10
-        font_size_table = 9
+        font_size_table = 6.5
         text_color = (0.15, 0.55, 0.7)
 
         # --- Fill Header Information ---
@@ -43,12 +42,20 @@ def fill_parte_obra_pymupdf(template_pdf_path: str, output_pdf_path: str, data: 
             page.insert_text(fitz.Point(80, 114.5), data.telefono,
                              fontsize=font_size_general, fontname=font_name, color=text_color)
 
+        if data.fecha is not None:
+            page.insert_text(fitz.Point(245, 93.5), data.fecha,
+                             fontsize=font_size_general, fontname=font_name, color=text_color)
+
+        if data.contacto_obra is not None:
+            page.insert_text(fitz.Point(280, 113.5), data.contacto_obra,
+                             fontsize=font_size_table, fontname=font_name, color=text_color)
+
         # --- Fill Table Data ---
         table_start_y = 163
         row_height = 19
         col_x_actividades = 60
-        col_x_cant = 480
-        col_x_unid = 530
+        col_x_cant = 322
+        col_x_unid = 357
 
         if data.lineas:
             for i, activity in enumerate(data.lineas):
@@ -80,19 +87,12 @@ def fill_parte_obra_pymupdf(template_pdf_path: str, output_pdf_path: str, data: 
             page.insert_textbox(comments_rect, data.comentarios,
                                 fontsize=font_size_general, fontname=font_name, color=text_color)
 
-        # --- Fill Other Fields (Fecha, Contacto Obra) ---
-        if data.fecha is not None:
-            page.insert_text(fitz.Point(100, 750), data.fecha,
-                             fontsize=font_size_general, fontname=font_name, color=text_color)
-
-        if data.contacto_obra is not None:
-            page.insert_text(fitz.Point(300, 750), data.contacto_obra,
-                             fontsize=font_size_general, fontname=font_name, color=text_color)
-
         # --- Signatures ---
-        if data.signature is not None:
-            page.insert_text(fitz.Point(100, 770), "Signed by Client",
-                             fontsize=font_size_general, fontname=font_name, color=text_color)
+        if data.firma is not None:
+            img = open('./firmas/403_20250709105905_signature.png', "rb").read()
+            rect = fitz.Rect(30, 540, 150, 600)
+
+            page.insert_image(rect, stream=img)
 
         doc.save(output_pdf_path, garbage=3, deflate=True)
         doc.close()

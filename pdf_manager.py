@@ -1,9 +1,9 @@
 import fitz  # PyMuPDF is imported as 'fitz'
-from pydantic import BaseModel
-from datetime import date
-from typing import List, Optional
+
 
 from dto.ParteDTO import ParteImprimirPDF
+from mail_sender import send_email_with_attachment
+
 
 # Example data to fill the PDF
 
@@ -82,14 +82,17 @@ def fill_parte_obra_pymupdf(template_pdf_path: str, output_pdf_path: str, data: 
                                      fontsize=font_size_table, fontname=font_name, color=text_color)
 
         # --- Fill "Comentarios:" ---
-        comments_rect = fitz.Rect(40, 600, 550, 700)
+        comments_rect = fitz.Rect(35, 500, 420, 750)
+        comments_rect.fill_color = (1, 0, 0)
+
         if data.comentarios is not None:
             page.insert_textbox(comments_rect, data.comentarios,
-                                fontsize=font_size_general, fontname=font_name, color=text_color)
+                                fontsize=font_size_table, fontname=font_name, color=text_color)
 
         # --- Signatures ---
         if data.firma is not None:
-            img = open('./firmas/403_20250709105905_signature.png', "rb").read()
+            print(data.pdf)
+            img = open('./firmas/' + data.pdf, "rb").read()
             rect = fitz.Rect(30, 540, 150, 600)
 
             page.insert_image(rect, stream=img)
@@ -98,6 +101,7 @@ def fill_parte_obra_pymupdf(template_pdf_path: str, output_pdf_path: str, data: 
         doc.close()
         print(f"PDF filled successfully using PyMuPDF! Output file: {output_pdf_path}")
 
+        send_email_with_attachment(output_pdf_path, str(data.proyecto) + "_parte" + str(data.nParte))
     except FileNotFoundError:
         print(
             f"Error: Template PDF not found at '{template_pdf_path}'. Please ensure the PDF is in the same directory or provide the full path.")

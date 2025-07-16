@@ -1,21 +1,17 @@
 import base64
 import datetime
-from http.client import HTTPResponse
 from typing import List
-
 from fastapi import FastAPI, HTTPException, status
-
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
-
 from db.db_connection import get_lineas, get_ofertas, get_num_parte, get_linea_por_oferta
 from db.db_queries import test_connection, create_parte, create_pdf_file, get_lineas_pdf, get_parte_pdf
-from dto.ParteDTO import ParteDTO, ParteRecibidoPost, ParteImprimirPDF
+from dto.ParteDTO import ParteRecibidoPost, ParteImprimirPDF
 from entities.Actividad import Actividades
 from entities.Contact import Cliente
 from entities.Oferta import Oferta
 from entities.Project import ProyectoObra
-from entities.LineaPedido import Linea_pedido, LineaPedidoPost, LineaPedidoPDF
+from entities.LineaPedido import Linea_pedido, LineaPedidoPDF
 
 origins = [
     "http://localhost.tiangolo.com",
@@ -24,14 +20,7 @@ origins = [
     "http://localhost:8080",
 ]
 
-# db_partes: List[ParteDTO] = [
-#   ParteDTO(id=540, parteDate=datetime.datetime.now(),
-#           teamManager=db_managers[0],
-#          actividades=db_actividades,
-#         project=db_proyectos[0], status="pending")
-# ]
 app = FastAPI()
-# test
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -39,31 +28,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# @app.get("/api/partes")
-# async def get_partes():
-#    get_all_partes()
-#    return db_partes
-
-
-# @app.get("/api/partes/{id}")
-# async def get_parte(id: int):
-#    for parte in db_partes:
-#        if parte.id == id:
-#            return parte
-#    return None
-
-
-# seteo las lineas del parte
-
-
-def obtener_lineas_pedido():
-    lineas_pedido = get_lineas()
-    lista = []
-    for linea in lineas_pedido:
-        lista.append(Linea_pedido(**linea))
-    return lista
 
 
 def crear_actividad(linea: Linea_pedido):
@@ -106,21 +70,16 @@ def parse_ofertas() -> List[Oferta]:
     parsed_ofertas = []
     for o in ofertas:
         try:
-            # Asume que tu modelo Oferta puede inicializarse directamente con el diccionario
             parsed_ofertas.append(Oferta(**o))
         except ValidationError as e:
             print(f"Error de validación para oferta: {o} - {e}")
-            # Decide si ignorar o manejar el error
     return parsed_ofertas
 
 
 def parsear_datos(lista):
     for linea in lista:
         lista_actividades.append(crear_actividad(linea))
-        lista_clientes.append(crear_cliente(linea))
-        lista_proyectos.append(crear_proyecto(linea))
-    # lista_ofertas.append(crear_oferta(linea))
-    return [lista_actividades, lista_clientes, lista_proyectos]
+    return [lista_actividades]
 
 
 @app.get("/")
@@ -138,12 +97,6 @@ async def get_actividades():
     return []  # lista_datos[0]
 
 
-@app.get("/api/clientes")
-async def get_clientes():
-    # db_contacts = get_all_contacts()
-    return parsear_datos(lista_lineas)[1]
-
-
 @app.get("/api/proyectos")
 async def get_proyectos():
     return []  # lista_datos[2]
@@ -153,9 +106,6 @@ async def get_proyectos():
 async def listar_ofertas():
     lista = parse_ofertas()
     return lista
-
-
-db_partes = []
 
 
 @app.post("/api/partes")
@@ -207,15 +157,7 @@ async def get_parte(parteId: int):
         print(f"Datos del parte que causaron el error: {parte_data_dict}")
         raise HTTPException(status_code=500,
                             detail=f"Error interno del servidor: Fallo la validación de datos del parte principal - {e}")
-
-    # Si todo va bien, crea el PDF y retorna el objeto
     return parte_obj
-
-
-@app.get("/api/lineas")
-async def listar_lineas():
-    lista = obtener_lineas_pedido()
-    return lista
 
 
 @app.get("/api/lineas/{idoferta}")
@@ -239,7 +181,7 @@ async def get_last_id():
     return get_num_parte() + 1
 
 
-def handle_signature(parte: ParteRecibidoPost):
+def handle_signature(parte: ParteImprimirPDF | ParteRecibidoPost, ):
     firma = parte.firma
     if "," in firma:
         header, encoded_data = firma.split(",", 1)
@@ -248,15 +190,14 @@ def handle_signature(parte: ParteRecibidoPost):
 
     try:
         decoded_image_data = base64.b64decode(encoded_data)
-
+        nombre_firma = (str(parte.nParte) + "_"
+                        + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+                        + "_signature.png")
         # Ahora puedes guardar estos datos binarios como una imagen
-        with open("firmas/"
-                  + str(parte.id_parte) + "_"
-                  + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-                  + "_signature.png", "wb") as f:
+        with open("firmas/" + nombre_firma, "wb") as f:
             f.write(decoded_image_data)
-            # todo cambiar firma/pdf por la url de la imagen
-
+            parte.pdf = nombre_firma
+            return parte
     except Exception as e:
         print(f"Error al decodificar la firma: {e}")
 
@@ -269,6 +210,7 @@ def qu():
 @app.get("/api/pdf/{idParte}")
 async def create_pdf(idParte: int | str):
     pp = await get_parte(idParte)
+    handle_signature(pp)
     create_pdf_file(pp)
     if pp:
         return {"mensaje": "OK"}

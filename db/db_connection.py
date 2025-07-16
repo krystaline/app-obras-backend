@@ -1,15 +1,9 @@
-import datetime
-import os
 import pyodbc
 from dotenv import load_dotenv
 
 from db.database import get_db_connection # Importa la función de conexión
-from entities.Project import ProyectoObra
 
 load_dotenv()
-
-# Elimina la cadena de conexión global y la variable conn aquí
-# conn = pyodbc.connect(connection_string, autocommit=True)
 
 def get_all_partes():
     # Implementar si es necesario, usando get_db_connection()
@@ -21,7 +15,7 @@ def get_linea_por_oferta(idOferta: int):
     try:
         cursor = conn.cursor()
         # Revisa el nombre de tu tabla y columnas
-        sql_query = """ SELECT * FROM ofertas_cli_cabecera WHERE ocl_idOferta = ? """
+        sql_query = """ SELECT * FROM ofertas_cli_cabecera WHERE ocl_idOferta = ? and ocl_idArticulo like 'MO%' """
         cursor.execute(sql_query, idOferta)
         rows = cursor.fetchall()
         columns = [column[0] for column in cursor.description]
@@ -39,7 +33,7 @@ def get_lineas():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        sql_query = """ SELECT * FROM ofertas_cli_cabecera """
+        sql_query = """ SELECT * FROM ofertas_cli_cabecera where ocl_idArticulo like 'MO%'"""
         cursor.execute(sql_query)
         rows = cursor.fetchall()
         columns = [column[0] for column in cursor.description]

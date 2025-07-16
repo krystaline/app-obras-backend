@@ -1,8 +1,5 @@
-from datetime import datetime
 from typing import List, Optional
-
 from dotenv import load_dotenv
-
 from db.database import get_db_connection
 from dto.ParteDTO import ParteImprimirPDF, ParteRecibidoPost
 from entities.LineaPedido import LineaPedidoPost

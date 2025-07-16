@@ -1,15 +1,7 @@
 import msal, requests, base64, os, json
+from dotenv import load_dotenv
 
-TENANT_ID = 'd0fbdbb8-b41b-4c4a-af4a-1ef369dcccaa'
-CLIENT_ID = '7562f532-b3df-4051-841b-a5c6bbf51300'
-CLIENT_SECRET = 'maG8Q~Vvuen5d5kYPqH.Gsb_DfnHe8BzNk43hc-B'  # mailer_secret
-
-SENDER_EMAIL = 'obras_noresponder@krystaline.es'  # Correo desde el que se enviará (debe tener permisos)
-SUBJECT = 'PDF Parte obra generado'
-BODY_CONTENT = 'Este correo ha sido generado y enviado automáticamente.\n No responder.'
-ATTACHMENT_CONTENT_TYPE = 'application/pdf'  # Tipo MIME del archivo (ej. 'text/plain', 'image/png', 'application/pdf')
-
-RECIPIENT_EMAILS = ['alessandro.volta@krystaline.es', 'paulabrotonsrequena15@gmail.com']
+load_dotenv()
 
 
 # 'joana@krystaline.es']
@@ -21,9 +13,9 @@ def get_access_token():
     usando el flujo de credenciales de cliente.
     """
     app = msal.ConfidentialClientApplication(
-        CLIENT_ID,
-        authority=f"https://login.microsoftonline.com/{TENANT_ID}",
-        client_credential=CLIENT_SECRET
+        os.getenv('CLIENT_ID'),
+        authority=f"https://login.microsoftonline.com/{os.getenv('TENANT_ID')}",
+        client_credential=os.getenv('CLIENT_SECRET')
     )
     result = app.acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
 
@@ -52,7 +44,7 @@ def send_email_with_attachment(file_path, filename):
         encoded_content = base64.b64encode(file_content).decode('utf-8')
 
     to_recipients_list = []
-    for email in RECIPIENT_EMAILS:
+    for email in os.getenv('TO_RECIPIENTS').split(',') if os.getenv('TO_RECIPIENTS') else []:
         to_recipients_list.append({
             'emailAddress': {
                 'address': email
@@ -60,17 +52,17 @@ def send_email_with_attachment(file_path, filename):
         })
     email_data = {
         'message': {
-            'subject': SUBJECT,
+            'subject': os.getenv('SUBJECT'),
             'body': {
                 'contentType': 'HTML',  # Puedes usar 'Text' o 'HTML'
-                'content': BODY_CONTENT
+                'content': os.getenv('BODY_CONTENT')
             },
             'toRecipients': to_recipients_list,
             'attachments': [
                 {
                     '@odata.type': '#microsoft.graph.fileAttachment',
                     'name': filename,
-                    'contentType': ATTACHMENT_CONTENT_TYPE,
+                    'contentType': os.getenv('ATTACHMENT_CONTENT_TYPE'),
                     'contentBytes': encoded_content
                 }
             ]
@@ -79,7 +71,7 @@ def send_email_with_attachment(file_path, filename):
     }
 
     # URL para enviar el correo (desde el usuario especificado en SENDER_EMAIL)
-    send_mail_url = f'https://graph.microsoft.com/v1.0/users/{SENDER_EMAIL}/sendMail'
+    send_mail_url = f'https://graph.microsoft.com/v1.0/users/{os.getenv('SENDER_EMAIL')}/sendMail'
 
     try:
         response = requests.post(send_mail_url, headers=headers, data=json.dumps(email_data))

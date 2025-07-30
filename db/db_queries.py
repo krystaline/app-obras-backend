@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from db.database import get_db_connection
 from dto.ParteDTO import ParteImprimirPDF, ParteRecibidoPost
 from entities.LineaPedido import LineaPedidoPost
+from entities.User import User
 from pdf_manager import fill_parte_obra_pymupdf
 
 load_dotenv()
@@ -122,7 +123,7 @@ def update_ppl(conn, linea: LineaPedidoPost):
     # **Ajusta los valores para que coincidan con los campos de LineaPedidoPost y las columnas de tu DB**
     values = (
         linea.id_parte,
-        linea.unidades_puestas_hoy,  # Esto debería ser la cantidad puesta hoy
+        linea.unidades_puestas_hoy + linea.cantidad,  # Esto debería ser la cantidad puesta hoy
         linea.descripcion,
         linea.idArticulo,
 
@@ -207,3 +208,33 @@ def create_pdf_file(parte: ParteImprimirPDF):
     template_path = "parte-obra_vacio.pdf"
     output_filename = f"{parte.oferta}_{parte.nParte}.pdf"
     fill_parte_obra_pymupdf(template_path, output_filename, parte)
+
+
+def asginar_trabajadores_bd(idParte: int, workers: List[User]):
+    query = """INSERT INTO workers_partes (idParte, idTrabajador, nombreTrabajador)
+               VALUES (?, ?, ?)"""
+    try:
+        for w in workers:
+            con = get_db_connection()
+            con.execute(query, (idParte, w.id, w.name))
+    except Exception as e:
+        print(f"Error al asignar trabajadores a parte: {e}")
+        return False
+
+    return True
+
+
+def get_trabajadores_parte(idParte: int):
+    query = """SELECT idTrabajador, nombreTrabajador
+               FROM workers_partes
+               WHERE idParte = ?"""
+    con = get_db_connection()
+    cur = con.cursor()
+    cur.execute(query, (idParte,))
+    rows = cur.fetchall()
+
+    data = []
+    columns = [column[0] for column in cur.description]  # Obtiene los nombres de las columnas (con AS)
+    for row in rows:
+        data.append(dict(zip(columns, row)))
+    return data

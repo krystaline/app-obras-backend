@@ -1,17 +1,22 @@
 import base64
 import datetime
+from http.client import HTTPResponse
 from typing import List
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
+
+from db.azure_funcs import get_workers
 from db.db_connection import get_lineas, get_ofertas, get_num_parte, get_linea_por_oferta
-from db.db_queries import test_connection, create_parte, create_pdf_file, get_lineas_pdf, get_parte_pdf
+from db.db_queries import test_connection, create_parte, create_pdf_file, get_lineas_pdf, get_parte_pdf, \
+    asginar_trabajadores_bd, get_trabajadores_parte
 from dto.ParteDTO import ParteRecibidoPost, ParteImprimirPDF
 from entities.Actividad import Actividades
 from entities.Contact import Cliente
 from entities.Oferta import Oferta
 from entities.Project import ProyectoObra
 from entities.LineaPedido import Linea_pedido, LineaPedidoPDF
+from entities.User import User
 
 origins = [
     "http://localhost.tiangolo.com",
@@ -114,6 +119,7 @@ async def create_partes(parte: ParteRecibidoPost) -> ParteRecibidoPost:
     print(parte)
     handle_signature(parte)  # Asegúrate que esta función use parte.signature correctamente
     try:
+        print(parte)
         # Pasa el objeto parte Pydantic directamente a tu función de DB
         create_parte(parte)
         # db_partes.append(parte) # Si db_partes es solo un cache en memoria, puedes seguir usándolo.
@@ -228,3 +234,24 @@ async def get_all_partes_summary():
     # Si no tienes esta función en db_queries.py, tendrías que crearla.
     # Por ahora, no podemos listar todos los partes sin esto.
     pass  #
+
+
+@app.get("/api/workers")
+async def list_users():
+    workers = await get_workers()
+    if workers:
+        return workers
+    else:
+        return []
+
+
+@app.post('/api/partes/{idParte}/workers', status_code=201)
+async def asignar_trabajadores_parte(idParte: int | str, workers: List[User]):
+    if idParte:
+        if asginar_trabajadores_bd(idParte, workers):
+            return True
+    return HTTPException(status_code=404, detail=f"Parte con ID {idParte} no encontrado.")
+
+@app.get('/api/partes/{idParte}/workers')
+async def listar_trabajadores_parte(idParte: int):
+    return get_trabajadores_parte(idParte)

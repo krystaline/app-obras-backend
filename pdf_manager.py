@@ -1,6 +1,5 @@
 import fitz  # PyMuPDF is imported as 'fitz'
 
-
 from dto.ParteDTO import ParteImprimirPDF
 from mail_sender import send_email_with_attachment
 
@@ -15,47 +14,47 @@ def fill_parte_obra_pymupdf(template_pdf_path: str, output_pdf_path: str, data: 
 
         # --- Font and Color setup for PyMuPDF ---
         font_name = "helv"
-        font_size_general = 10
+        font_size_general = 8
         font_size_table = 6.5
         text_color = (0.15, 0.55, 0.7)
 
         # --- Fill Header Information ---
         if data.nParte is not None:
             # Ensure it's a string
-            page.insert_text(fitz.Point(80, 49), str(data.nParte),
-                             fontsize=font_size_general, fontname=font_name, color=text_color)
-
-        if data.proyecto is not None:
-            page.insert_text(fitz.Point(80, 64), str(data.proyecto),
+            page.insert_text(fitz.Point(66.5, 45.8), str(data.nParte),
                              fontsize=font_size_general, fontname=font_name, color=text_color)
 
         if data.idoferta is not None:
+            page.insert_text(fitz.Point(68, 60), str(data.idoferta),
+                             fontsize=font_size_general, fontname=font_name, color=text_color)
+
+        if data.proyecto is not None:
             # Ensure it's a string
-            page.insert_text(fitz.Point(80, 81.5), str(data.idoferta),
+            page.insert_text(fitz.Point(68, 73.2), str(data.proyecto),
                              fontsize=font_size_general, fontname=font_name, color=text_color)
 
         if data.jefe_equipo is not None:
-            page.insert_text(fitz.Point(105, 99.3), data.jefe_equipo,
+            page.insert_text(fitz.Point(89, 86), data.jefe_equipo,
                              fontsize=font_size_general, fontname=font_name, color=text_color)
 
         if data.telefono is not None:
-            page.insert_text(fitz.Point(80, 114.5), data.telefono,
+            page.insert_text(fitz.Point(67, 99), data.telefono,
                              fontsize=font_size_general, fontname=font_name, color=text_color)
 
         if data.fecha is not None:
-            page.insert_text(fitz.Point(245, 93.5), data.fecha,
+            page.insert_text(fitz.Point(292, 57.5), data.fecha,
                              fontsize=font_size_general, fontname=font_name, color=text_color)
 
         if data.contacto_obra is not None:
-            page.insert_text(fitz.Point(280, 113.5), data.contacto_obra,
+            page.insert_text(fitz.Point(86, 112), data.contacto_obra,
                              fontsize=font_size_table, fontname=font_name, color=text_color)
 
         # --- Fill Table Data ---
-        table_start_y = 163
-        row_height = 19
+        table_start_y = 152
+        row_height = 18
         col_x_actividades = 60
-        col_x_cant = 322
-        col_x_unid = 357
+        col_x_cant = 332
+        col_x_unid = 367
 
         if data.lineas:
             for i, activity in enumerate(data.lineas):

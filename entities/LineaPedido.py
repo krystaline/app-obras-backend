@@ -20,6 +20,7 @@ class Linea_pedido:
         self.cd_Cliente = kwargs.get('cd_Cliente')
         self.ocl_IdArticulo = kwargs.get('ocl_IdArticulo')
         self.ocl_Descrip = kwargs.get('ocl_Descrip')
+        self.ocl_tipoUnidad = kwargs.get('ocl_tipoUnidad')
         self.ocl_Cantidad = kwargs.get('ocl_Cantidad')
         self.ocl_PesoNeto = kwargs.get('ocl_PesoNeto')
         self.ocl_NumBultos = kwargs.get('ocl_NumBultos')
@@ -39,17 +40,18 @@ class Linea_pedido:
 
 
 class LineaPedidoPost(BaseModel):
-    id: int # Parece ser el 'ocl_idlinea' o 'IdLinea'
-    id_parte: int # Se refiere al Id del parte de obra al que pertenece
-    id_oferta: int # Cambiado a int, asumiendo que es un ID numérico
+    id: int  # Parece ser el 'ocl_idlinea' o 'IdLinea'
+    id_parte: int  # Se refiere al Id del parte de obra al que pertenece
+    id_oferta: int  # Cambiado a int, asumiendo que es un ID numérico
     descripcion: str
-    medida: str # Esto se mapea a 'unidadMedida' en LineaPedidoPDF
-    unidades_puestas_hoy: float # Cantidad puesta hoy
-    unidades_totales: float # Cantidad total (ofertada)
-    ya_certificado: int # 0 o 1, podría ser bool
+    medida: str  # Esto se mapea a 'tipounidad' en LineaPedidoPDF
+    unidades_puestas_hoy: float  # Cantidad puesta hoy
+    unidades_totales: float  # Cantidad total (ofertada)
+    ya_certificado: int  # 0 o 1, podría ser bool
+    cantidad: int  # lo que ya tengo hecho (para sumarlo)
 
-    capitulo: Optional[int] = None # Si es opcional
-    idArticulo: Optional[str] = None # 'ocl_IdArticulo' o similar
+    capitulo: Optional[int] = None  # Si es opcional
+    idArticulo: Optional[str] = None  # 'ocl_IdArticulo' o similar
 
 
 class LineaPedidoDTO:
@@ -75,10 +77,10 @@ class LineaPedidoDTO:
 # **Modelo ajustado para la impresión de PDF y lectura de DB**
 class LineaPedidoPDF(BaseModel):
     # Asegúrate que estos nombres coincidan con los 'AS' en tus consultas SQL
-    id: int = Field(..., alias="IdLinea") # O el nombre de la columna en la DB para el ID de línea
+    id: int = Field(..., alias="IdLinea")  # O el nombre de la columna en la DB para el ID de línea
     descripcion: str = Field(..., alias="DescripArticulo")
-    cantidad: float = Field(..., alias="cantidad") # Este es el campo que se usa en pdf_manager para 'Cant.'
-    unidadMedida: str = Field(..., alias="UnidadMedida") # Este es el campo que se usa en pdf_manager para 'Unid.'
+    cantidad: float = Field(..., alias="cantidad")  # Este es el campo que se usa en pdf_manager para 'Cant.'
+    unidadMedida: str = Field(..., alias="UnidadMedida")  # Este es el campo que se usa en pdf_manager para 'Unid.'
 
     class Config:
         populate_by_name = True

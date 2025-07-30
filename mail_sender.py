@@ -44,12 +44,24 @@ def send_email_with_attachment(file_path, filename):
         encoded_content = base64.b64encode(file_content).decode('utf-8')
 
     to_recipients_list = []
-    for email in os.getenv('TO_RECIPIENTS').split(',') if os.getenv('TO_RECIPIENTS') else []:
-        to_recipients_list.append({
-            'emailAddress': {
-                'address': email
-            }
-        })
+    recipient_emails_str = os.getenv('RECIPIENT_EMAILS')
+    if recipient_emails_str:
+        try:
+            # Replace single quotes with double quotes for valid JSON
+            parsed_emails = json.loads(recipient_emails_str.replace("'", '"'))
+            for email in parsed_emails:
+                to_recipients_list.append({
+                    'emailAddress': {
+                        'address': email
+                    }
+                })
+        except json.JSONDecodeError:
+            print(f"Error decoding RECIPIENT_EMAILS: {recipient_emails_str}. Ensure it's a valid JSON array string.")
+            return  # Or raise an error
+    else:
+        print("RECIPIENT_EMAILS is not set in the .env file.")
+        return  # Or raise an error
+
     email_data = {
         'message': {
             'subject': os.getenv('SUBJECT'),

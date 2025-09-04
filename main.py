@@ -1,15 +1,20 @@
 import base64
 import datetime
+import uuid
 from http.client import HTTPResponse
+from pathlib import Path
 from typing import List
-from fastapi import FastAPI, HTTPException, status
+
+from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
+from db import db_queries
 from db.azure_funcs import get_workers
 from db.db_connection import get_lineas, get_ofertas, get_num_parte, get_linea_por_oferta
 from db.db_queries import test_connection, create_parte, create_pdf_file, get_lineas_pdf, get_parte_pdf, \
-    asginar_trabajadores_bd, get_trabajadores_parte
+    asginar_trabajadores_bd, get_trabajadores_parte, subir_imagen
 from dto.ParteDTO import ParteRecibidoPost, ParteImprimirPDF
 from entities.Actividad import Actividades
 from entities.Contact import Cliente
@@ -17,6 +22,8 @@ from entities.Oferta import Oferta
 from entities.Project import ProyectoObra
 from entities.LineaPedido import Linea_pedido, LineaPedidoPDF
 from entities.User import User
+
+IMAGES_DIR = Path(__file__).parent / 'imagenes'
 
 origins = [
     "http://localhost.tiangolo.com",
@@ -252,6 +259,48 @@ async def asignar_trabajadores_parte(idParte: int | str, workers: List[User]):
             return True
     return HTTPException(status_code=404, detail=f"Parte con ID {idParte} no encontrado.")
 
+
 @app.get('/api/partes/{idParte}/workers')
 async def listar_trabajadores_parte(idParte: int):
     return get_trabajadores_parte(idParte)
+
+
+@app.post('/api/imagen')
+async def get_imagen(
+        image: UploadFile = File(...),
+        idOferta: int = Form(...)
+):
+    print(f"ID de la oferta: {idOferta}")
+    print(f"Nombre del archivo de imagen: {image.content_type}")
+    image_path = str(uuid.uuid4()) + '.jpg'
+    print(f"UUID: {image_path}")
+    try:
+        with open(f"imagenes/{image_path}", "wb") as buffer:
+            while content := await image.read(1024):
+                buffer.write(content)
+        db_queries.subir_imagen(idOferta, image_path)
+        print(f"UUID: {image_path}")
+        return status.HTTP_200_OK
+    except Exception as e:
+        print(f"Error al guardar la imagen: {e}")
+        return status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+@app.get('/api/oferta/imagenes/{idOferta}')
+async def get_imagenes_for_oferta(idOferta: int):
+    images = db_queries.get_imagenes_por_oferta(idOferta)
+    print(images)
+    return {"images": images}
+
+
+@app.get("/api/images/imagenes/{image_name}")
+async def get_image(image_name: str):
+    image_path = IMAGES_DIR / image_name
+
+    if not image_path.is_file():
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    img = FileResponse(image_path)
+    print("h")
+    print(img.filename)
+    return img

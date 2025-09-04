@@ -5,6 +5,7 @@ from dto.ParteDTO import ParteImprimirPDF, ParteRecibidoPost
 from entities.LineaPedido import LineaPedidoPost
 from entities.User import User
 from pdf_manager import fill_parte_obra_pymupdf
+from fastapi import HTTPException
 
 load_dotenv()
 
@@ -238,3 +239,36 @@ def get_trabajadores_parte(idParte: int):
     for row in rows:
         data.append(dict(zip(columns, row)))
     return data
+
+
+def subir_imagen(idOferta: int, imagen: str):
+    query = """ INSERT INTO imagenes_obras (obra_id, image_name)
+                values (?, ?)"""
+
+    con = get_db_connection()
+    cur = con.cursor()
+    try:
+        cur.execute(query, (idOferta, imagen))
+
+    except Exception as e:
+        print(f"Error al subir imagen: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al crear el parte de obra: {e}")
+
+    return {"message": "Imagen subida exitosamente asociada a ." + str(idOferta) + ""}
+
+
+def get_imagenes_por_oferta(idOferta):
+    query = """SELECT image_name
+               FROM imagenes_obras
+               WHERE obra_id = ?"""
+    con = get_db_connection()
+    cur = con.cursor()
+    try:
+        cur.execute(query, (idOferta,))
+        rows = cur.fetchall()
+        images = [row[0] for row in rows]
+        print(rows)
+        return images
+    except Exception as e:
+        print(f"Error al obtener imagenes por oferta: {e}")
+    return []

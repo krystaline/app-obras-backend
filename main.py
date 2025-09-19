@@ -14,7 +14,8 @@ from db import db_queries
 from db.azure_funcs import get_workers
 from db.db_connection import get_lineas, get_ofertas, get_num_parte, get_linea_por_oferta
 from db.db_queries import test_connection, create_parte, create_pdf_file, get_lineas_pdf, get_parte_pdf, \
-    asginar_trabajadores_bd, get_trabajadores_parte, subir_imagen
+    asginar_trabajadores_bd, get_trabajadores_parte, subir_imagen, crear_parte_mo_bd
+from db.partes_manoobra import get_partes_mo_db
 from dto.ParteDTO import ParteRecibidoPost, ParteImprimirPDF
 from entities.Actividad import Actividades
 from entities.Contact import Cliente
@@ -22,6 +23,7 @@ from entities.Oferta import Oferta
 from entities.Project import ProyectoObra
 from entities.LineaPedido import Linea_pedido, LineaPedidoPDF
 from entities.User import User
+from entities.partesmo.ParteMO import ParteMORecibir
 
 IMAGES_DIR = Path(__file__).parent / 'imagenes'
 
@@ -304,3 +306,17 @@ async def get_image(image_name: str):
     print("h")
     print(img.filename)
     return img
+
+
+# PARTES MANO DE OBRA
+@app.get("/api/partesMO/{idOferta}")
+async def get_partes_mo(idOferta: int):
+    print(idOferta)
+    return get_partes_mo_db(idOferta)
+
+
+@app.post("/api/partesMO/new")
+async def new_parte_mo(parte: ParteMORecibir):
+    crear_parte_mo_bd(parte)
+    print(parte)
+    return "A"

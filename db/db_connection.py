@@ -1,13 +1,11 @@
 import pyodbc
 from dotenv import load_dotenv
+from fontTools.misc.cython import returns
 
-from db.database import get_db_connection # Importa la función de conexión
+from db.database import get_db_connection  # Importa la función de conexión
+from entities.partesmo.ParteMO import ParteMORecibir
 
 load_dotenv()
-
-def get_all_partes():
-    # Implementar si es necesario, usando get_db_connection()
-    return []
 
 
 def get_linea_por_oferta(idOferta: int):
@@ -15,7 +13,10 @@ def get_linea_por_oferta(idOferta: int):
     try:
         cursor = conn.cursor()
         # Revisa el nombre de tu tabla y columnas
-        sql_query = """ SELECT * FROM ofertas_cli_cabecera WHERE ocl_idOferta = ? and ocl_idArticulo like 'MO%' """
+        sql_query = """ SELECT *
+                        FROM ofertas_cli_cabecera
+                        WHERE ocl_idOferta = ?
+                          and ocl_idArticulo like 'MO%' """
         cursor.execute(sql_query, idOferta)
         rows = cursor.fetchall()
         columns = [column[0] for column in cursor.description]
@@ -29,11 +30,14 @@ def get_linea_por_oferta(idOferta: int):
     finally:
         conn.close()
 
+
 def get_lineas():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        sql_query = """ SELECT * FROM ofertas_cli_cabecera where ocl_idArticulo like 'MO%'"""
+        sql_query = """ SELECT *
+                        FROM ofertas_cli_cabecera
+                        where ocl_idArticulo like 'MO%'"""
         cursor.execute(sql_query)
         rows = cursor.fetchall()
         columns = [column[0] for column in cursor.description]
@@ -52,12 +56,18 @@ def get_ofertas():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        sql_query = """ SELECT * FROM ofertas_app_v2 ORDER BY idOferta DESC """
+        sql_query = """ SELECT *
+                        FROM ofertas_app_v2
+                        ORDER BY idOferta DESC """
         cursor.execute(sql_query)
         rows = cursor.fetchall()
         columns = [column[0] for column in cursor.description]
         data = [dict(zip(columns, row)) for row in rows]
-        return data
+        lineas = get_lineas()
+        ids_con_lineas = {linea['ocl_IdOferta'] for linea in lineas if 'ocl_IdOferta' in linea}
+        ofertas_filtradas = [oferta for oferta in data if str(oferta.get('idOferta', '')) in ids_con_lineas]
+
+        return ofertas_filtradas
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]
         print(f"Database error: {sqlstate}")
@@ -65,6 +75,7 @@ def get_ofertas():
         return None
     finally:
         conn.close()
+
 
 def load_db():
     get_ofertas()
@@ -74,8 +85,10 @@ def get_num_parte():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        sql_query = """ SELECT MAX(CAST(IdParte AS INTEGER)) FROM pers_partes_app """
+        sql_query = """ SELECT MAX(CAST(IdParte AS INTEGER))
+                        FROM pers_partes_app """
         cursor.execute(sql_query)
         return cursor.fetchval()
     finally:
         conn.close()
+

@@ -27,14 +27,21 @@ def get_partes_mo_db(ff: int):
     conn = get_db_connection()
     try:
         cur = conn.cursor()
-        sql_query = """ SELECT *
-                        FROM partes_mano_obra where idParteERP = ?
-                        order by idParteERP DESC \
+        sql_query = """SELECT pmo.*,
+                              mo.*
+                       FROM partes_mano_obra AS pmo
+                                JOIN
+                            manos_partes_interm AS mpi ON pmo.idParte = mpi.idParteMO
+                                JOIN
+                            mano_de_obra AS mo ON mpi.idManoObra = mo.idManoObra
+                       WHERE pmo.idParteERP = ?
+                       ORDER BY pmo.idParteERP DESC;
                     """
         cur.execute(sql_query, ff)
         rows = cur.fetchall()
         columns = [column[0] for column in cur.description]
         data = [dict(zip(columns, row)) for row in rows]
+        print(data)
         return data
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]

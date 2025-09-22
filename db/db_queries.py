@@ -299,7 +299,8 @@ def crear_parte_mo_bd(parte: ParteMORecibir):
 
         for row in parte.manosdeobra:
             print("manosdeobra")
-            insertar_mos(parte.idParteMO, row, conn)
+            insertar_manos(row, conn)
+            manos_intermedias(parte.idParteMO, row, conn)
 
         cursor.execute(sql_query, valores_insertar)
         return {"message": "parte mo insertado OK"}
@@ -309,6 +310,19 @@ def crear_parte_mo_bd(parte: ParteMORecibir):
         print(f"Database error: {sqlstate}")
     finally:
         conn.close()
+
+
+def insertar_manos(m: ManoDeObra, conn):
+    sql_query = """INSERT INTO mano_de_obra(idManoObra, accion, unidades, precio)
+                   VALUES (?, ?, ?, ?)"""
+    cursor = conn.cursor()
+    try:
+        cursor.execute(sql_query, (m.idManoObra, m.accion, m.unidades, m.precio))
+        return {"message": "mano de obra inserado OK"}
+    except Exception as e:
+        sqlstate = e.args[0]
+        print(f"Database error: {sqlstate}")
+    return {"error": "mano de obra NO insertado"}
 
 
 def insertar_materiales(idParte: str, mat: Materiales, conn):
@@ -324,7 +338,7 @@ def insertar_materiales(idParte: str, mat: Materiales, conn):
     return ""
 
 
-def insertar_mos(idParte: str, mo: ManoDeObra, conn):
+def manos_intermedias(idParte: str, mo: ManoDeObra, conn):
     sql_query = """INSERT INTO manos_partes_interm (idManoObra, idParteMO)
                    values (?, ?)"""
     cursor = conn.cursor()
@@ -337,24 +351,13 @@ def insertar_mos(idParte: str, mo: ManoDeObra, conn):
     return ""
 
 
-def materiales_intermedias():
-    return None
-
-
-def desplazamientos_intermedias():
-    return None
-
-
-def manos_intermedias():
-    return None
-
-
 def insertar_desplazamientos(idParte: str, des: Desplazamiento, conn):
     sql_query = """INSERT INTO desplazamientos_partes_interm (idDesplazamiento, idParteMO)
                    values (?, ?)"""
     cursor = conn.cursor()
     try:
         cursor.execute(sql_query, (des.id, idParte))
+
     except Exception as e:
         sqlstate = e.args[0]
         print(f"Database error: {sqlstate}")

@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CONNECTION_STRING = f'DRIVER={os.getenv('SQLS_NATIVE')};' \
-                    f'SERVER={'localhost'},{1433};' \
-                    f'DATABASE={'master'};' \
+                    f'SERVER={'192.168.0.21'},{61310};' \
+                    f'DATABASE={'Partes'};' \
                     f'UID={'sa'};' \
-                    f'PWD={os.getenv("CU_MSSQL_SA_PASSWORD")};' \
+                    f'PWD={os.getenv("PGPASSWORD")};' \
                     f'TrustServerCertificate=Yes;'
 
 
@@ -24,6 +24,7 @@ def get_db_connection():
         # Considera re-lanzar la excepción o manejarla de forma más robusta
         raise ConnectionError(f"No se pudo conectar a la base de datos: {ex}")
 
+
 # Prueba de conexión (opcional, para depuración inicial)
 def test_db_connection():
     try:
@@ -36,4 +37,7 @@ def test_db_connection():
         return result
     except Exception as e:
         print(f"Fallo la prueba de conexión a la base de datos: {e}")
-        return None
+    return None
+
+
+

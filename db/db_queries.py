@@ -1,10 +1,14 @@
 from typing import List, Optional
 from dotenv import load_dotenv
+from pyodbc import Error
+
 from db.database import get_db_connection
 from dto.ParteDTO import ParteImprimirPDF, ParteRecibidoPost
 from entities.LineaPedido import LineaPedidoPost
 from entities.User import User
+from entities.partesmo.ParteMO import ParteMORecibir, Materiales, Desplazamiento, ManoDeObra
 from pdf_manager import fill_parte_obra_pymupdf
+from fastapi import HTTPException
 
 load_dotenv()
 
@@ -238,3 +242,124 @@ def get_trabajadores_parte(idParte: int):
     for row in rows:
         data.append(dict(zip(columns, row)))
     return data
+
+
+def subir_imagen(idOferta: int, imagen: str):
+    query = """ INSERT INTO imagenes_obras (obra_id, image_name)
+                values (?, ?)"""
+
+    con = get_db_connection()
+    cur = con.cursor()
+    try:
+        cur.execute(query, (idOferta, imagen))
+
+    except Exception as e:
+        print(f"Error al subir imagen: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al crear el parte de obra: {e}")
+
+    return {"message": "Imagen subida exitosamente asociada a ." + str(idOferta) + ""}
+
+
+def get_imagenes_por_oferta(idOferta):
+    query = """SELECT image_name
+               FROM imagenes_obras
+               WHERE obra_id = ?"""
+    con = get_db_connection()
+    cur = con.cursor()
+    try:
+        cur.execute(query, (idOferta,))
+        rows = cur.fetchall()
+        images = [row[0] for row in rows]
+        print(rows)
+        return images
+    except Exception as e:
+        print(f"Error al obtener imagenes por oferta: {e}")
+    return []
+
+
+def crear_parte_mo_bd(parte: ParteMORecibir):
+    conn = get_db_connection()
+    sql_query = """INSERT INTO partes_mano_obra (idTrabajador, idParteERP, idProyecto, estado, observaciones,
+                                                 creation_date, update_time, idParte)
+                   values (?, ?, ?, ?, ?, ?, ?, ?)"""
+    cursor = conn.cursor()
+    valores_insertar = (
+        parte.usuario, parte.idOferta, parte.idProyecto, "pendiente", parte.comentarios, parte.fecha, parte.fecha,
+        parte.idParteMO
+    )
+
+    try:
+        for row in parte.materiales:
+            print("materiales")
+            insertar_materiales(parte.idParteMO, row, conn)
+
+        for row in parte.desplazamientos:
+            print("desplazamientos")
+            insertar_desplazamientos(parte.idParteMO, row, conn)
+
+        for row in parte.manosdeobra:
+            print("manosdeobra")
+            insertar_manos(row, conn)
+            manos_intermedias(parte.idParteMO, row, conn)
+
+        cursor.execute(sql_query, valores_insertar)
+        return {"message": "parte mo insertado OK"}
+
+    except Error as ex:
+        sqlstate = ex.args[0]
+        print(f"Database error: {sqlstate}")
+    finally:
+        conn.close()
+
+
+def insertar_manos(m: ManoDeObra, conn):
+    sql_query = """INSERT INTO mano_de_obra(idManoObra, accion, unidades, precio)
+                   VALUES (?, ?, ?, ?)"""
+    cursor = conn.cursor()
+    try:
+        cursor.execute(sql_query, (m.idManoObra, m.accion, m.unidades, m.precio))
+        return {"message": "mano de obra inserado OK"}
+    except Exception as e:
+        sqlstate = e.args[0]
+        print(f"Database error: {sqlstate}")
+    return {"error": "mano de obra NO insertado"}
+
+
+def insertar_materiales(idParte: str, mat: Materiales, conn):
+    sql_query = """INSERT INTO partes_materiales_interm (idMaterial, idParteMO)
+                   values (?, ?)"""
+    cursor = conn.cursor()
+    try:
+        cursor.execute(sql_query, (mat.id, idParte))
+    except Exception as e:
+        sqlstate = e.args[0]
+        print(f"Database error: {sqlstate}")
+
+    return ""
+
+
+def manos_intermedias(idParte: str, mo: ManoDeObra, conn):
+    sql_query = """INSERT INTO manos_partes_interm (idManoObra, idParteMO)
+                   values (?, ?)"""
+    cursor = conn.cursor()
+    try:
+        cursor.execute(sql_query, (mo.idManoObra, idParte))
+    except Exception as e:
+        sqlstate = e.args[0]
+        print(f"Database error: {sqlstate}")
+
+    return ""
+
+
+def insertar_desplazamientos(idParte: str, des: Desplazamiento, conn):
+    sql_query = """INSERT INTO desplazamientos_partes_interm (idDesplazamiento, idParteMO)
+                   values (?, ?)"""
+    cursor = conn.cursor()
+    try:
+        cursor.execute(sql_query, (des.id, idParte))
+
+    except Exception as e:
+        sqlstate = e.args[0]
+        print(f"Database error: {sqlstate}")
+
+    return ""

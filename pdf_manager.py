@@ -100,7 +100,7 @@ def fill_parte_obra_pymupdf(template_pdf_path: str, output_pdf_path: str, data: 
         doc.close()
         print(f"PDF filled successfully using PyMuPDF! Output file: {output_pdf_path}")
 
-        send_email_with_attachment(output_pdf_path, str(data.proyecto) + "_parte" + str(data.nParte))
+        send_email_with_attachment(output_pdf_path, str(data.proyecto) + "_parte_" + str(data.nParte))
     except FileNotFoundError:
         print(
             f"Error: Template PDF not found at '{template_pdf_path}'. Please ensure the PDF is in the same directory or provide the full path.")

@@ -27,7 +27,8 @@ def get_partes_mo_db(ff: int):
     conn = get_db_connection()
     try:
         cur = conn.cursor()
-        sql_query = """SELECT pmo.*,
+        sql_query = sql_query = """
+                                SELECT pmo.*,
                               mo.*
                        FROM partes_mano_obra AS pmo
                                 JOIN
@@ -36,8 +37,11 @@ def get_partes_mo_db(ff: int):
                             mano_de_obra AS mo ON mpi.idManoObra = mo.idManoObra
                        WHERE pmo.idParteERP = ?
                        ORDER BY pmo.idParteERP DESC;
-                    """
-        cur.execute(sql_query, ff)
+                                """
+        # IMPORTANTE: El parámetro 'ff' debe pasarse como una tupla o lista.
+        # En este caso, como es un solo parámetro, se recomienda una tupla de un solo elemento.
+        cur.execute(sql_query, (ff,))
+
         rows = cur.fetchall()
         columns = [column[0] for column in cur.description]
         data = [dict(zip(columns, row)) for row in rows]
@@ -50,4 +54,3 @@ def get_partes_mo_db(ff: int):
         return None
     finally:
         conn.close()
-    

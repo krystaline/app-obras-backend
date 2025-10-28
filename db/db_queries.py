@@ -1,5 +1,7 @@
+import datetime
 from typing import List, Optional
 from dotenv import load_dotenv
+from psycopg2._psycopg import cursor
 from pyodbc import Error
 
 from db.database import get_db_connection
@@ -303,21 +305,23 @@ def crear_parte_mo_bd(parte: ParteMORecibir):
             manos_intermedias(parte.idParteMO, row, conn)
 
         cursor.execute(sql_query, valores_insertar)
-        return {"message": "parte mo insertado OK"}
+        return {"message": "OK"}
 
     except Error as ex:
         sqlstate = ex.args[0]
         print(f"Database error: {sqlstate}")
+        return {"message": "KO"}
     finally:
         conn.close()
 
 
 def insertar_manos(m: ManoDeObra, conn):
-    sql_query = """INSERT INTO mano_de_obra(idManoObra, accion, unidades, precio)
-                   VALUES (?, ?, ?, ?)"""
+    sql_query = """INSERT INTO mano_de_obra(idManoObra, accion, unidades, precio, creation_date, update_time)
+                   VALUES (?, ?, ?, ?, ?, ?)"""
     cursor = conn.cursor()
     try:
-        cursor.execute(sql_query, (m.idManoObra, m.accion, m.unidades, m.precio))
+        cursor.execute(sql_query,
+                       (m.idManoObra, m.accion, m.unidades, m.precio, datetime.datetime.now(), datetime.datetime.now()))
         return {"message": "mano de obra inserado OK"}
     except Exception as e:
         sqlstate = e.args[0]
@@ -363,3 +367,25 @@ def insertar_desplazamientos(idParte: str, des: Desplazamiento, conn):
         print(f"Database error: {sqlstate}")
 
     return ""
+
+
+def get_materiales_db():
+    sql_query = """SELECT *
+                   FROM materiales"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(sql_query)
+
+    rows = cur.fetchall()
+    try:
+        data = []
+        columns = [column[0] for column in cur.description]  # Obtiene los nombres de las columnas (con AS)
+        for row in rows:
+            data.append(dict(zip(columns, row)))
+
+        return data
+
+    except Exception as e:
+        sqlstate = e.args[0]
+        print(f"Database error: {sqlstate}")
+        return None

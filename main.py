@@ -14,7 +14,7 @@ from db import db_queries
 from db.azure_funcs import get_workers
 from db.db_connection import get_lineas, get_ofertas, get_num_parte, get_linea_por_oferta
 from db.db_queries import test_connection, create_parte, create_pdf_file, get_lineas_pdf, get_parte_pdf, \
-    asginar_trabajadores_bd, get_trabajadores_parte, subir_imagen, crear_parte_mo_bd
+    asginar_trabajadores_bd, get_trabajadores_parte, subir_imagen, crear_parte_mo_bd, get_materiales_db
 from db.partes_manoobra import get_partes_mo_db
 from dto.ParteDTO import ParteRecibidoPost, ParteImprimirPDF
 from entities.Actividad import Actividades
@@ -315,8 +315,15 @@ async def get_partes_mo(idOferta: int):
     return get_partes_mo_db(idOferta)
 
 
-@app.post("/api/partesMO/new")
+@app.post("/api/partesMO/new", status_code=201)
 async def new_parte_mo(parte: ParteMORecibir):
-    crear_parte_mo_bd(parte)
-    print(parte)
-    return "A"
+    if crear_parte_mo_bd(parte).message == "OK":
+        print(parte)
+        return parte
+    else:
+        return HTTPException(status_code=500, detail="Error al crear el parte")
+
+
+@app.get("/api/materiales")
+async def get_materiales():
+    return get_materiales_db()

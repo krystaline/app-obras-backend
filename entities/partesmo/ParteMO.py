@@ -19,8 +19,11 @@ class ParteMO(BaseModel):
 
 
 class Materiales(BaseModel):
-    id: int
-    title: str
+    idArticulo : str
+    descripcion : str | None = None
+    cantidad : int
+    precio : int
+    lote : str
 
 
 class Desplazamiento(BaseModel):

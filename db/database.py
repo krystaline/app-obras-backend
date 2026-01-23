@@ -27,7 +27,7 @@ LOCAL_CONNECTION_STRING = (
 def get_db_connection():
     """Establece y devuelve una nueva conexión a la base de datos."""
     try:
-        conn = pyodbc.connect(LOCAL_CONNECTION_STRING, autocommit=True)
+        conn = pyodbc.connect(CONNECTION_STRING, autocommit=True)
         return conn
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]

@@ -1,3 +1,4 @@
+from _interpchannels import create
 from typing import List
 from pydantic import BaseModel
 import datetime
@@ -19,11 +20,11 @@ class ParteMO(BaseModel):
 
 
 class Materiales(BaseModel):
-    idArticulo : str
-    descripcion : str | None = None
-    cantidad : int
-    precio : int
-    lote : str
+    idArticulo: str
+    descripcion: str | None = None
+    cantidad: int
+    lote: str
+    id: int
 
 
 class Desplazamiento(BaseModel):
@@ -51,3 +52,26 @@ class ParteMORecibir(BaseModel):
     manosdeobra: List[ManoDeObra]
     comentarios: str
     fecha: str
+    accion: str
+    estado: str
+    creation_date: str
+
+
+class Actividad(BaseModel):
+    nombre: str
+
+
+class ParteMOListaDTO(BaseModel):
+    idParteMO: str
+    fecha: str
+    vehiculo: str
+    actividades: List[Actividad]
+    materiales: List[Materiales]
+    estado: str
+
+
+class Vehiculo(BaseModel):
+    id: str
+    matricula: str
+    descrip: str
+    modelo: str

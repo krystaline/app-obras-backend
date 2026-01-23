@@ -14,7 +14,7 @@ def get_linea_por_oferta(idOferta: int):
         cursor = conn.cursor()
         # Revisa el nombre de tu tabla y columnas
         sql_query = """ SELECT *
-                        FROM ofertas_cli_cabecera
+                        FROM Lineas_Oferta
                         WHERE ocl_idOferta = ?
                           and ocl_idArticulo like 'MO%' """
         cursor.execute(sql_query, idOferta)
@@ -36,7 +36,7 @@ def get_lineas():
     try:
         cursor = conn.cursor()
         sql_query = """ SELECT *
-                        FROM ofertas_cli_cabecera
+                        FROM Lineas_Oferta
                         where ocl_idArticulo like 'MO%'"""
         cursor.execute(sql_query)
         rows = cursor.fetchall()
@@ -57,15 +57,22 @@ def get_ofertas():
     try:
         cursor = conn.cursor()
         sql_query = """ SELECT *
-                        FROM ofertas_app_v2
+                        FROM Ofertas
+                        where revision = 1
                         ORDER BY idOferta DESC """
         cursor.execute(sql_query)
         rows = cursor.fetchall()
         columns = [column[0] for column in cursor.description]
         data = [dict(zip(columns, row)) for row in rows]
         lineas = get_lineas()
-        ids_con_lineas = {linea['ocl_IdOferta'] for linea in lineas if 'ocl_IdOferta' in linea}
-        ofertas_filtradas = [oferta for oferta in data if str(oferta.get('idOferta', '')) in ids_con_lineas]
+        ids_con_lineas = {
+            linea["ocl_IdOferta"] for linea in lineas if "ocl_IdOferta" in linea
+        }
+        ofertas_filtradas = [
+            oferta
+            for oferta in data
+            if str(oferta.get("idOferta", "")) in ids_con_lineas
+        ]
 
         return ofertas_filtradas
     except pyodbc.Error as ex:
@@ -85,10 +92,9 @@ def get_num_parte():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        sql_query = """ SELECT MAX(CAST(IdParte AS INTEGER))
+        sql_query = """ SELECT MAX(CAST(idParteAPP AS INTEGER))
                         FROM pers_partes_app """
         cursor.execute(sql_query)
         return cursor.fetchval()
     finally:
         conn.close()
-

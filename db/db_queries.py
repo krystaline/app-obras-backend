@@ -8,7 +8,12 @@ from db.database import get_db_connection
 from dto.ParteDTO import ParteImprimirPDF, ParteRecibidoPost
 from entities.LineaPedido import LineaPedidoPost
 from entities.User import User
-from entities.partesmo.ParteMO import ParteMORecibir, Materiales, Desplazamiento, ManoDeObra
+from entities.partesmo.ParteMO import (
+    ParteMORecibir,
+    Materiales,
+    Desplazamiento,
+    ManoDeObra,
+)
 from pdf_manager import fill_parte_obra_pymupdf
 from fastapi import HTTPException
 
@@ -19,10 +24,50 @@ def test_connection():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute('SELECT 1')
+        cursor.execute("SELECT 1")
         return cursor.fetchall()
     finally:
         conn.close()  # Asegúrate de cerrar la conexión
+
+
+def get_lineas_con_oferta(idOferta: int) -> List[dict]:
+    conn = get_db_connection()
+    try:
+        sql_query = """
+                    SELECT *
+                    FROM pers_partes_app
+                    WHERE idOferta = ?
+                    """
+        cursor = conn.cursor()
+        cursor.execute(sql_query, (idOferta,))
+        rows = cursor.fetchall()
+
+        data = []
+        if rows:
+            columns = [description[0] for description in cursor.description]
+            for row in rows:
+                data.append(dict(zip(columns, row)))
+        return data
+    except Exception as e:
+        print(f"Error al obtener partes por oferta {idOferta}: {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def get_cantidad_realizada(conn, idOferta: int, idLinea: int) -> float:
+    sql_query = """
+                SELECT SUM(cantidad)
+                FROM pers_partes_app
+                WHERE idOferta = ?
+                  AND idLinea = ?
+                """
+    cursor = conn.cursor()
+    cursor.execute(sql_query, (idOferta, idLinea))
+    result = cursor.fetchone()
+    if result and result[0] is not None:
+        return float(result[0])
+    return 0.0
 
 
 def create_parte(parte: ParteRecibidoPost):
@@ -31,11 +76,32 @@ def create_parte(parte: ParteRecibidoPost):
     try:
         crear_parte_app(conn, parte)  # Pasa la conexión
         for linea in parte.lineas:
-            # NO LLAMAR crear_parte_app(parte) aquí de nuevo
-            handle_pers_partes(conn, parte, linea)  # Pasa la conexión
-            # handle_ofertas_cli(parte, linea) # Si necesitas esto, también pasa la conexión y ajusta
-            # TODO crearia un nuevo ofertacli si tengo lineas adicionales
-            update_ppl(conn, linea)  # Pasa la conexión
+            # ACTUALIZACIÓN:
+            # En lugar de comprobar si existe linea en Ofertas y crearla (duplicando),
+            # confiamos en pers_partes_app para el histórico.
+            # Aqui solo actualizamos el acumulado en Lineas_Oferta para referencia.
+
+            handle_pers_partes(conn, parte, linea)
+
+            # 1. Obtenemos lo realizado TOTAL (incluyendo lo que acabamos de insertar en handle_pers_partes?
+            #    Ah espera, handle_pers_partes hace insert. Si lo llamamos antes, get_cantidad_realizada lo verá si estamos en la misma tx?
+            #    Normalmente sí, si la isolation level lo permite.
+            #    Para asegurar, sumamos la linea actual a lo que retorne get_cantidad_realizada (si esta excluye la actual)
+            #    O simplemente calculamos: acumulado_anterior + actual.
+
+            # Mejor consultamos la base, asumiendo Read Uncommitted o que nuestra insert es visible.
+            # Si no, sumamos manualmente.
+
+            total_realizado = get_cantidad_realizada(
+                conn, parte.idOferta, linea.id_linea
+            )
+            # handle_pers_partes ya insertó, así que total_realizado debería incluirlo si la tx lo ve.
+            # Asumimos que sí por ser misma conexión.
+
+            print(f"Total realizado para linea {linea.id_linea}: {total_realizado}")
+
+            update_linea_cumulative(conn, linea, total_realizado)
+
         conn.commit()  # Asegúrate de hacer commit si autocommit es False o si manejas transacciones
     except Exception as e:
         print(f"Error al crear el parte completo: {e}")
@@ -46,6 +112,25 @@ def create_parte(parte: ParteRecibidoPost):
     return parte
 
 
+def update_idParteERP(parte: ParteRecibidoPost):
+    conn = get_db_connection()
+    try:
+        sql_query = """
+                    UPDATE Lineas_Oferta
+                    SET ppcl_IdParte = ?
+                    WHERE idParteAPP = ? \
+                    """
+        cursor = conn.cursor()
+        cursor.execute(sql_query, (parte.idParteERP, parte.idParteAPP))
+        conn.commit()
+    except Exception as e:
+        print(f"Error al actualizar el parte (app): {e}")
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def get_parte_pdf(idParte: int) -> Optional[dict]:
     conn = get_db_connection()
     try:
@@ -53,18 +138,21 @@ def get_parte_pdf(idParte: int) -> Optional[dict]:
         # Asegúrate que los nombres de las columnas coincidan con ParteImprimirPDF
         # O usa AS para renombrar
         q = """
-            SELECT nParte,
-                   proyecto,
-                   oferta,
-                   jefe_equipo,
-                   telefono,
-                   fecha,
-                   contacto_obra,
-                   comentarios,
-                   firma,
-                   idoferta
-            FROM tabla_partes_sin_nombre_app
-            WHERE nParte = ? \
+            SELECT P.idParteERP,
+                   P.idParteAPP,
+                   P.proyecto,
+                   P.oferta,
+                   P.jefe_equipo,
+                   P.telefono,
+                   P.fecha,
+                   P.contacto_obra,
+                   P.comentarios,
+                   P.firma,
+                   P.idOferta,
+                   O.idProyecto
+            FROM partes_app_obra P
+            LEFT JOIN Ofertas O ON P.idOferta = O.idOferta
+            WHERE P.idParteAPP = ? \
             """
         cur.execute(q, (idParte,))
         parte_data_row = cur.fetchone()
@@ -86,22 +174,32 @@ def get_parte_pdf(idParte: int) -> Optional[dict]:
 def crear_parte_app(conn, parte: ParteRecibidoPost):
     cur = conn.cursor()
     sql_query = """
-                INSERT INTO tabla_partes_sin_nombre_app(idoferta, pdf, nParte, proyecto, oferta, jefe_equipo, telefono,
+                INSERT INTO partes_app_obra(idOferta, pdf, idParteERP, idParteAPP, proyecto, oferta, jefe_equipo, telefono,
                                                         fecha, contacto_obra, comentarios, firma)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
                 """
     # Asegúrate que el campo 'firma' en tu modelo coincide con el de la DB
     # parte.signature es el campo de Pydantic, que se mapea a 'firma' en la DB
     # parte.fecha puede necesitar ser convertido a string si la DB lo espera como string,
     # aunque lo ideal es que lo guardes como DATE o DATETIME en la DB.
     values = (
-        parte.idoferta, None, parte.nParte, parte.proyecto, parte.oferta, parte.jefe_equipo, parte.telefono,
-        parte.fecha, parte.contacto_obra, parte.comentarios, parte.firma  # Asegúrate de usar parte.signature
+        parte.idOferta,
+        None,
+        parte.idParteERP,
+        parte.idParteAPP,
+        parte.proyecto,
+        parte.oferta,
+        parte.jefe_equipo,
+        parte.telefono,
+        parte.fecha,
+        parte.contacto_obra,
+        parte.comentarios,
+        parte.firma,  # Asegúrate de usar parte.signature
     )
 
     try:
         cur.execute(sql_query, values)
-        print("Datos insertados correctamente en tabla_partes_sin_nombre_app!")
+        print("Datos insertados correctamente en partes_app_obra!")
         # No necesitas commit si autocommit=True en la conexión
         return parte
     except Exception as e:
@@ -110,65 +208,79 @@ def crear_parte_app(conn, parte: ParteRecibidoPost):
 
 
 # Recibe la conexión como argumento
-def update_ppl(conn, linea: LineaPedidoPost):
-    cur = conn.cursor()
-    print()
-    print()
-    print("linea (para update_ppl): ")
-    print(linea)
-    sql_query = """
-                UPDATE ofertas_cli_cabecera
-                SET ppcl_IdParte         = ?,
-                    ppcl_cantidad        = ?, -- Asegúrate que el campo en DB se llama 'ppcl_cantidad'
-                    ppcl_DescripArticulo = ?,
-                    ppcl_IdArticulo      = ?
-                WHERE ocl_idOferta = ?
-                  AND ocl_descrip = ?
-                  AND ocl_IdArticulo = ? \
-                """
-    # **Ajusta los valores para que coincidan con los campos de LineaPedidoPost y las columnas de tu DB**
-    values = (
-        linea.id_parte,
-        linea.unidades_puestas_hoy + linea.cantidad,  # Esto debería ser la cantidad puesta hoy
-        linea.descripcion,
-        linea.idArticulo,
 
-        linea.id_oferta,
-        linea.descripcion,
-        linea.idArticulo,
-    )
+
+# Recibe la conexión como argumento
+def update_linea_cumulative(conn, linea: LineaPedidoPost, total_realizado: float):
+    cur = conn.cursor()
+    # Actualizamos Lineas_Oferta.
+    # NO tocamos idParteApp necesariamente para evitar conflictos,
+    # o lo actualizamos al "último" (last write wins).
+    # Actualizamos ppcl_cantidad con el TOTAL realizado.
+
+    # Asumimos que idLinea y idOferta son la clave.
+
+    sql_query = """
+                UPDATE Lineas_Oferta
+                SET ppcl_cantidad        = ?,
+                idParteAPP = ? 
+                WHERE ocl_idOferta = ?
+                  AND ocl_idlinea = ?
+                """
+    # Si quisieramos guardar el último parte: , idParteApp = ?
+    # Pero el usuario indicó problemas con esto. Lo más seguro es actualizar solo la cantidad.
+
+    values = (total_realizado, linea.idParteAPP, linea.id_oferta, linea.id_linea)
 
     try:
         cur.execute(sql_query, values)
-        print("Linea actualizada correctamente en ofertas_cli_cabecera!")
+        if cur.rowcount == 0:
+            # Fallback si por alguna razón ocl_idlinea no matchea (legacy data?)
+            # Intentamos con description y idArticulo como hacía antes
+            print("No se actualizó por ID, intentando fallback legacy...")
+            sql_fallback = """
+                UPDATE Lineas_Oferta
+                SET ppcl_cantidad = ?
+                WHERE ocl_idOferta = ?
+                  AND ocl_Descrip = ?
+                  AND ocl_IdArticulo = ?
+            """
+            cur.execute(
+                sql_fallback,
+                (total_realizado, linea.id_oferta, linea.descripcion, linea.idArticulo),
+            )
+
+        print("Linea actualizada correctamente en Lineas_Oferta (Acumulado)!")
     except Exception as e:
-        print(f"Error al actualizar linea en ofertas_cli_cabecera: {e}")
-        raise
+        print(f"Error al actualizar linea en Lineas_Oferta: {e}")
+        # No hacemos raise para no interrumpir el flujo principal, ya que pers_partes_app es lo importante ahora.
+        # Pero es bueno loguearlo.
 
 
 # Recibe la conexión como argumento
 def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
     cur = conn.cursor()
     sql_query = """
-                INSERT INTO pers_partes_app(idparte, idoferta, revision, capitulo, titulo, idlinea, idarticulo,
+                INSERT INTO pers_partes_app(idParteERP, idParteAPP, idOferta, revision, capitulo, titulo, idlinea, idarticulo,
                                             descriparticulo, cantidad, unidadmedida, certificado, fechainsertupdate,
                                             cantidad_total)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
                 """
     # Ajusta los valores para que coincidan con los campos de LineaPedidoPost y las columnas de tu DB
     values = (
-        parte.nParte,  # Usa nParte del ParteImprimirPDF
-        parte.idoferta,
+        parte.idParteERP,  # Usa idParteERP del ParteImprimirPDF
+        parte.idParteAPP,
+        parte.idOferta,
         1,  # revision, si es un valor fijo
         linea.capitulo,  # del DTO LineaPedidoPost
         "Titulo del Capitulo",  # Si es fijo o viene de alguna parte
-        linea.id,  # id de la linea (LineaPedidoPost)
+        linea.id_linea,  # id de la linea (LineaPedidoPost)
         linea.idArticulo,
         linea.descripcion,
         linea.unidades_puestas_hoy,  # Asumo que es 'cantidad' en pers_partes_app
         linea.medida,  # Asumo que es 'unidadMedida' en pers_partes_app
         linea.ya_certificado,
-        "fecha de hoy",
+        parte.fecha,
         linea.unidades_totales,
     )
 
@@ -186,18 +298,21 @@ def get_lineas_pdf(parteId: int) -> List[dict]:
         cur = conn.cursor()
         # Asegúrate que los AS coincidan EXACTAMENTE con los nombres de campo en LineaPedidoPDF
         q = """
-            SELECT IdLinea         AS id,
-                   DescripArticulo AS descripcion,
-                   cantidad        AS cantidad,
-                   UnidadMedida    AS unidadMedida
+            SELECT  id,
+                    IdLinea         AS id_linea,
+                    DescripArticulo AS descripcion,
+                    cantidad        AS cantidad,
+                    UnidadMedida    AS unidadMedida
             FROM pers_partes_app
-            WHERE idparte = ? \
+            WHERE idParteAPP = ? \
             """
         cur.execute(q, (parteId,))
         rows = cur.fetchall()
 
         data = []
-        columns = [column[0] for column in cur.description]  # Obtiene los nombres de las columnas (con AS)
+        columns = [
+            column[0] for column in cur.description
+        ]  # Obtiene los nombres de las columnas (con AS)
         for row in rows:
             data.append(dict(zip(columns, row)))
         return data
@@ -212,7 +327,7 @@ def create_pdf_file(parte: ParteImprimirPDF):
     # Asegúrate que el path de la plantilla sea correcto
     # Y el nombre del archivo de salida
     template_path = "parte-obra_vacio.pdf"
-    output_filename = f"{parte.oferta}_{parte.nParte}.pdf"
+    output_filename = f"{parte.oferta}_{parte.idParteERP}.pdf"
     fill_parte_obra_pymupdf(template_path, output_filename, parte)
 
 
@@ -240,7 +355,9 @@ def get_trabajadores_parte(idParte: int):
     rows = cur.fetchall()
 
     data = []
-    columns = [column[0] for column in cur.description]  # Obtiene los nombres de las columnas (con AS)
+    columns = [
+        column[0] for column in cur.description
+    ]  # Obtiene los nombres de las columnas (con AS)
     for row in rows:
         data.append(dict(zip(columns, row)))
     return data
@@ -257,7 +374,9 @@ def subir_imagen(idOferta: int, imagen: str):
 
     except Exception as e:
         print(f"Error al subir imagen: {e}")
-        raise HTTPException(status_code=500, detail=f"Error al crear el parte de obra: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error al crear el parte de obra: {e}"
+        )
 
     return {"message": "Imagen subida exitosamente asociada a ." + str(idOferta) + ""}
 
@@ -281,13 +400,18 @@ def get_imagenes_por_oferta(idOferta):
 
 def crear_parte_mo_bd(parte: ParteMORecibir):
     conn = get_db_connection()
-    sql_query = """INSERT INTO partes_mano_obra (idTrabajador, idParteERP, idProyecto, estado, observaciones,
-                                                 creation_date, update_time, idParte)
-                   values (?, ?, ?, ?, ?, ?, ?, ?)"""
+    sql_query = """INSERT INTO partes_mano_obra (idTrabajador, idParteMO, idProyecto, estado, observaciones,
+                                                 creation_date, update_time)
+                   values (?, ?, ?, ?, ?, ?, ?)"""
     cursor = conn.cursor()
     valores_insertar = (
-        parte.usuario, parte.idOferta, parte.idProyecto, "pendiente", parte.comentarios, parte.fecha, parte.fecha,
-        parte.idParteMO
+        parte.usuario,
+        parte.idParteMO,
+        parte.idProyecto,
+        "pendiente",
+        parte.comentarios,
+        datetime.datetime.strptime(parte.fecha, "%Y-%m-%d").date(),
+        datetime.datetime.strptime(parte.fecha, "%Y-%m-%d").date(),
     )
 
     try:
@@ -320,8 +444,17 @@ def insertar_manos(m: ManoDeObra, conn):
                    VALUES (?, ?, ?, ?, ?, ?)"""
     cursor = conn.cursor()
     try:
-        cursor.execute(sql_query,
-                       (m.idManoObra, m.accion, m.unidades, m.precio, datetime.datetime.now(), datetime.datetime.now()))
+        cursor.execute(
+            sql_query,
+            (
+                m.idManoObra,
+                m.accion,
+                m.unidades,
+                m.precio,
+                datetime.datetime.now(),
+                datetime.datetime.now(),
+            ),
+        )
         return {"message": "mano de obra inserado OK"}
     except Exception as e:
         sqlstate = e.args[0]
@@ -379,7 +512,33 @@ def get_materiales_db():
     rows = cur.fetchall()
     try:
         data = []
-        columns = [column[0] for column in cur.description]  # Obtiene los nombres de las columnas (con AS)
+        columns = [
+            column[0] for column in cur.description
+        ]  # Obtiene los nombres de las columnas (con AS)
+        for row in rows:
+            data.append(dict(zip(columns, row)))
+
+        return data
+
+    except Exception as e:
+        sqlstate = e.args[0]
+        print(f"Database error: {sqlstate}")
+        return None
+
+
+def get_vehiculos_db():
+    sql_query = """SELECT *
+                   FROM vehiculos"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(sql_query)
+
+    rows = cur.fetchall()
+    try:
+        data = []
+        columns = [
+            column[0] for column in cur.description
+        ]  # Obtiene los nombres de las columnas (con AS)
         for row in rows:
             data.append(dict(zip(columns, row)))
 

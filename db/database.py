@@ -4,18 +4,30 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-CONNECTION_STRING = f'DRIVER={os.getenv('SQLS_NATIVE')};' \
-                    f'SERVER={'192.168.0.21'},{61310};' \
-                    f'DATABASE={'Partes'};' \
-                    f'UID={'sa'};' \
-                    f'PWD={os.getenv("PGPASSWORD")};' \
-                    f'TrustServerCertificate=Yes;'
+CONNECTION_STRING = (
+    f"DRIVER={os.getenv('SQLS_NATIVE')};"
+    f"SERVER={'192.168.0.21'},{61310};"
+    f"DATABASE={'Partes'};"
+    f"UID={'sa'};"
+    f"PWD={os.getenv('PGPASSWORD')};"
+    f"TrustServerCertificate=Yes;"
+)
+
+
+LOCAL_CONNECTION_STRING = (
+    f"DRIVER={os.getenv('SQLS_NATIVE')};"
+    f"SERVER={'localhost'},{1433};"
+    f"DATABASE={'master'};"
+    f"UID={'sa'};"
+    f"PWD={'YourStrong@Password123'};"
+    f"TrustServerCertificate=Yes;"
+)
 
 
 def get_db_connection():
     """Establece y devuelve una nueva conexión a la base de datos."""
     try:
-        conn = pyodbc.connect(CONNECTION_STRING, autocommit=True)
+        conn = pyodbc.connect(LOCAL_CONNECTION_STRING, autocommit=True)
         return conn
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]
@@ -30,7 +42,7 @@ def test_db_connection():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT 1')
+        cursor.execute("SELECT 1")
         result = cursor.fetchall()
         conn.close()
         print("Conexión a la base de datos exitosa!")
@@ -38,6 +50,3 @@ def test_db_connection():
     except Exception as e:
         print(f"Fallo la prueba de conexión a la base de datos: {e}")
     return None
-
-
-

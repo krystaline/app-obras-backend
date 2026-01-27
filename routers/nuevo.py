@@ -7,7 +7,7 @@ from utils.files import handle_signature
 router = APIRouter(prefix="/api/partes", tags=["nuevo"])
 
 
-@router.post("/crearNUEVO", status_code=status.HTTP_200_OK)
+@router.post("/crearNUEVO", status_code=status.HTTP_201_CREATED)
 def crear_parte_nuevo_flujo(parte: ParteRecibidoPost):
     print(f"Recibida petición para crear parte: {parte.idParteAPP}")
 

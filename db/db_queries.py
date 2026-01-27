@@ -1,8 +1,10 @@
 import datetime
+import uuid
 from typing import List, Optional
 from dotenv import load_dotenv
 from psycopg2._psycopg import cursor
 from pyodbc import Error
+from exceptions import DatabaseError
 
 from db.database import get_db_connection
 from dto.ParteDTO import ParteImprimirPDF, ParteRecibidoPost
@@ -398,50 +400,128 @@ def get_imagenes_por_oferta(idOferta):
     return []
 
 
+def solicitar_numero_ERP():
+    input_id = input(
+        "Introduce el ID ERP para el parte APP de mano obra (Enter para usar 0 y salir): "
+    )
+    if not input_id:
+        input_id = 0
+    else:
+        input_id = int(input_id)
+
+    return input_id
+
+
+def get_desplazamiento_from_vehiculo(idVehiculo: int):
+    query = """SELECT id
+               FROM desplazamientos
+               WHERE vehiculo_id = ?"""
+    con = get_db_connection()
+    cur = con.cursor()
+    try:
+        cur.execute(query, (idVehiculo,))
+        rows = cur.fetchone()
+        return rows[0]
+    except Exception as e:
+        print(f"Error al obtener desplazamientos por vehiculo: {e}")
+    return []
+
+
 def crear_parte_mo_bd(parte: ParteMORecibir):
     conn = get_db_connection()
-    sql_query = """INSERT INTO partes_mano_obra (idTrabajador, idParteMO, idProyecto, estado, observaciones,
-                                                 creation_date, update_time)
-                   values (?, ?, ?, ?, ?, ?, ?)"""
+    sql_query = """INSERT INTO partes_mano_obra (idTrabajador, idParteERP, idParteAPP, idProyecto, estado, observaciones,
+                                                 creation_date, update_time, firma_trabajador, idOferta)
+                   values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
     cursor = conn.cursor()
+    # Generar ID Parte APP (UUID)
+    idParteAPP = str(uuid.uuid4())
+
+    idParteERP = solicitar_numero_ERP()
+
+    # Valores para la tabla principal
     valores_insertar = (
         parte.usuario,
-        parte.idParteMO,
+        idParteERP,
+        idParteAPP,  # Usamos el UUID generado como idParteAPP
         parte.idProyecto,
         "pendiente",
         parte.comentarios,
         datetime.datetime.strptime(parte.fecha, "%Y-%m-%d").date(),
         datetime.datetime.strptime(parte.fecha, "%Y-%m-%d").date(),
+        "data",  # FIRMA POR IMPLEMENTAR
+        parte.idOferta,
     )
+    print(valores_insertar)
 
     try:
+        # Usamos idParteAPP para todas las relaciones intermedias
         for row in parte.materiales:
             print("materiales")
-            insertar_materiales(parte.idParteMO, row, conn)
+            # insertar_materiales (si es necesario) pero sobre todo la relación intermedia
+            insertar_materiales(idParteAPP, row, conn)
+            print("OK")
 
         for row in parte.desplazamientos:
             print("desplazamientos")
-            insertar_desplazamientos(parte.idParteMO, row, conn)
+            insertar_desplazamiento(row, conn)
+            # Obtener el ID del desplazamiento real (asociado al vehículo)
+            id_desplazamiento = get_desplazamiento_from_vehiculo(
+                int(row.id)
+            )  # row.id es vehiculo_id aquí
+
+            if id_desplazamiento:
+                desplazamientos_intermedios(idParteAPP, id_desplazamiento, conn)
+                print("OK")
+            else:
+                print(f"Error: No se encontró desplazamiento para vehiculo {row.id}")
 
         for row in parte.manosdeobra:
             print("manosdeobra")
             insertar_manos(row, conn)
-            manos_intermedias(parte.idParteMO, row, conn)
+            manos_intermedias(idParteAPP, row, conn)
+            print("OK")
 
         cursor.execute(sql_query, valores_insertar)
-        return {"message": "OK"}
+        conn.commit()  # Importante: commit si no es autocommit
+
+        return {"message": "OK", "idParteAPP": idParteAPP}
 
     except Error as ex:
-        sqlstate = ex.args[0]
+        conn.rollback()
+        sqlstate = ex.args[0] if ex.args else "Unknown"
         print(f"Database error: {sqlstate}")
-        return {"message": "KO"}
+        raise DatabaseError(f"Error creating Parte MO: {ex}")
+    except Exception as ex:
+        conn.rollback()
+        raise DatabaseError(f"Unexpected error creating Parte MO: {ex}")
     finally:
         conn.close()
+        # TODO: meterle lo de que avise cuando está creado (devuelve 200 OK y bla bla bla)
+
+
+def insertar_desplazamiento(desplazamiento: Desplazamiento, conn):
+    sql_query = """ INSERT INTO desplazamientos(vehiculo_id, kilometros, creation_date, update_date) values (?,?,?,?) """
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            sql_query,
+            (
+                desplazamiento.id,
+                desplazamiento.distancia,
+                datetime.datetime.now(),
+                datetime.datetime.now(),
+            ),
+        )
+    except Exception as e:
+        sqlstate = e.args[0]
+        print(f"Database error: {sqlstate}")
+    return {"message": "desplazamiento insertado OK"}
 
 
 def insertar_manos(m: ManoDeObra, conn):
-    sql_query = """INSERT INTO mano_de_obra(idManoObra, accion, unidades, precio, creation_date, update_time)
-                   VALUES (?, ?, ?, ?, ?, ?)"""
+    sql_query = """INSERT INTO mano_de_obra(idManoObra, accion, unidades, creation_date, update_date)
+                   VALUES (?, ?, ?, ?, ?)"""
     cursor = conn.cursor()
     try:
         cursor.execute(
@@ -450,7 +530,6 @@ def insertar_manos(m: ManoDeObra, conn):
                 m.idManoObra,
                 m.accion,
                 m.unidades,
-                m.precio,
                 datetime.datetime.now(),
                 datetime.datetime.now(),
             ),
@@ -476,11 +555,16 @@ def insertar_materiales(idParte: str, mat: Materiales, conn):
 
 
 def manos_intermedias(idParte: str, mo: ManoDeObra, conn):
-    sql_query = """INSERT INTO manos_partes_interm (idManoObra, idParteMO)
-                   values (?, ?)"""
+    sql_query = """INSERT INTO manos_partes_interm (idManoObra, idParteMO, creation_date, update_time)
+                   values (?, ?, ?, ?)"""
     cursor = conn.cursor()
     try:
-        cursor.execute(sql_query, (mo.idManoObra, idParte))
+        print(mo.idManoObra, type(mo.idManoObra))
+        print(idParte, type(idParte))
+        cursor.execute(
+            sql_query,
+            (mo.idManoObra, idParte, datetime.datetime.now(), datetime.datetime.now()),
+        )
     except Exception as e:
         sqlstate = e.args[0]
         print(f"Database error: {sqlstate}")
@@ -488,12 +572,12 @@ def manos_intermedias(idParte: str, mo: ManoDeObra, conn):
     return ""
 
 
-def insertar_desplazamientos(idParte: str, des: Desplazamiento, conn):
+def desplazamientos_intermedios(idParte: str, idDesplazamiento: int, conn):
     sql_query = """INSERT INTO desplazamientos_partes_interm (idDesplazamiento, idParteMO)
                    values (?, ?)"""
     cursor = conn.cursor()
     try:
-        cursor.execute(sql_query, (des.id, idParte))
+        cursor.execute(sql_query, (idDesplazamiento, idParte))
 
     except Exception as e:
         sqlstate = e.args[0]

@@ -1,3 +1,4 @@
+from typing import Optional
 from typing import List
 from pydantic import BaseModel
 import datetime
@@ -24,6 +25,7 @@ class Materiales(BaseModel):
     cantidad: int
     lote: str
     id: int
+    cantidadTotal: int
 
 
 class Desplazamiento(BaseModel):
@@ -37,7 +39,6 @@ class ManoDeObra(BaseModel):
     idManoObra: float
     accion: str
     fecha: str
-    precio: float
     unidades: float
 
 

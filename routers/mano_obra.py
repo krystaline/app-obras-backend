@@ -1,55 +1,61 @@
-from db.db_queries import get_vehiculos_db
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Header
 from entities.partesmo.ParteMO import ParteMORecibir
 from db.partes_manoobra import get_partes_mo_db
-from db.db_queries import crear_parte_mo_bd, get_materiales_db
+from db.db_queries import crear_parte_mo_bd, get_materiales_db, get_vehiculos_db
+from exceptions import DatabaseError
 
 router = APIRouter(prefix="/api", tags=["mano_obra"])
 
 
-@router.get("/partesMO/{idOferta}")
-def get_partes_mo(idOferta: int):
+@router.get("/partesMO/{idOferta}", status_code=status.HTTP_200_OK)
+def get_partes_mo(
+    idOferta: int, user: str = Header(...), authorization: str = Header(...)
+):
     # Removed async
     print(idOferta)
-    return get_partes_mo_db(idOferta)
-
-
-@router.post("/partesMO/new", status_code=201)
-def new_parte_mo(parte: ParteMORecibir):
-    # Removed async
-    # Note: crear_parte_mo_bd is not fully typed in original, returns dict or object with .message?
-    # Original code: if crear_parte_mo_bd(parte).message == "OK":
-    # But looking at db_queries.py: return {"message": "OK"} (dict)
-    # The original main.py had: `if crear_parte_mo_bd(parte).message == "OK":` which suggests it expected an object or named tuple,
-    # OR the db_queries.py I saw earlier was slightly different/misinterpreted.
-    # Looking at db_queries.py content provided:
-    # return {"message": "OK"}
-    # So `crear_parte_mo_bd(...)["message"]` is correct for python dicts.
-    # OR maybe it was returning an object in a previous version.
-    # START CORRECTION: accessing ["message"] for dict.
-
-    result = crear_parte_mo_bd(parte)
-    # Handle if result is dict or object
-    msg = (
-        result.get("message")
-        if isinstance(result, dict)
-        else getattr(result, "message", None)
-    )
-
-    if msg == "OK":
-        print(parte)
-        return parte
+    if authorization is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     else:
-        raise HTTPException(status_code=500, detail="Error al crear el parte")
+        accessToken = authorization.replace("Bearer ", "")
+    try:
+        return get_partes_mo_db(idOferta, accessToken, user)
+    except DatabaseError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting partes MO: {e}")
 
 
-@router.get("/materiales")
+@router.post("/partesMO/new", status_code=status.HTTP_201_CREATED)
+def new_parte_mo(parte: ParteMORecibir):
+    try:
+        result = crear_parte_mo_bd(parte)
+        print(f"Propagando ID: {result.get('idParteAPP')}")
+        return result
+    except DatabaseError as e:
+        print(f"Error creating parte: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Unexpected error creating parte")
+
+
+@router.get("/materiales", status_code=status.HTTP_200_OK)
 def get_materiales():
     # Removed async
-    return get_materiales_db()
+    try:
+        return get_materiales_db()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting materiales: {e}")
 
 
-@router.get("/vehiculos")
+@router.get("/vehiculos", status_code=status.HTTP_200_OK)
 def get_vehiculos():
     # Removed async
-    return get_vehiculos_db()
+    try:
+        return get_vehiculos_db()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting vehiculos: {e}")

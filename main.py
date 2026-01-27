@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from routers import partes, ofertas, media, mano_obra, workers, general, nuevo
+from dependencies import verify_auth_headers
 
 origins = [
     "http://localhost.tiangolo.com",
@@ -19,15 +20,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers
-app.include_router(partes.router)  # /api/partes
-app.include_router(partes.pdf_router)  # /api/pdf
-app.include_router(ofertas.router)  # /api/ofertas, /api/lineas
-app.include_router(media.router)  # /api/imagen, /api/oferta/imagenes
-app.include_router(mano_obra.router)  # /api/partesMO, /api/materiales
-app.include_router(workers.router)  # /api/workers
-app.include_router(general.router)  # /, /api/actividades, /api/queries
-app.include_router(nuevo.router)
+# Include Routers with global authentication
+app.include_router(partes.router, dependencies=[Depends(verify_auth_headers)])
+app.include_router(partes.pdf_router, dependencies=[Depends(verify_auth_headers)])
+app.include_router(ofertas.router, dependencies=[Depends(verify_auth_headers)])
+app.include_router(media.router, dependencies=[Depends(verify_auth_headers)])
+app.include_router(mano_obra.router, dependencies=[Depends(verify_auth_headers)])
+app.include_router(workers.router, dependencies=[Depends(verify_auth_headers)])
+app.include_router(
+    general.router
+)  # General might contain public endpoints? Keeping public for now unless specified.
+app.include_router(nuevo.router, dependencies=[Depends(verify_auth_headers)])
 
 if __name__ == "__main__":
     import uvicorn

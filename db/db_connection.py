@@ -1,9 +1,6 @@
 import pyodbc
 from dotenv import load_dotenv
-from fontTools.misc.cython import returns
-
 from db.database import get_db_connection  # Importa la función de conexión
-from entities.partesmo.ParteMO import ParteMORecibir
 
 load_dotenv()
 

@@ -14,16 +14,17 @@ La aplicación está construida con **FastAPI** e interactúa con una base de da
 - **Soporte Multimedia**: Manejar subida de imágenes y asociaciones.
 
 ## Tecnologías
-- **Lenguaje**: Python 3.9+
-- **Framework**: [FastAPI](https://fastapi.tiangolo.com/)
+- **Lenguaje**: [Python 3.13](https://www.python.org/downloads/) - [Información de seguridad](https://docs.python.org/3.13/library/security_warnings.html)
+- **Framework**: [FastAPI](https://fastapi.tiangolo.com/) - [Información de seguridad](https://fastapi.tiangolo.com/tutorial/security/)
 - **Driver de Base de Datos**: [pyodbc](https://github.com/mkleehammer/pyodbc)
-- **Procesamiento de PDF**: `pymupdf` (probablemente usado para rellenar/manipular PDFs)
-- **Servidor**: Uvicorn
+- **Procesamiento de PDF**: `pymupdf` (usado para rellenar/manipular PDFs)
+- **Servidor**: [Uvicorn 0.40.0](https://uvicorn.dev/)
 
 ## Requisitos Previos
-- Python 3.9 o superior.
+- Python 3.13.
 - Controlador ODBC para SQL Server (ej. ODBC Driver 17/18 for SQL Server) instalado en el sistema.
 - Acceso a la base de datos SQL objetivo.
+- Fichero de entorno .env con la configuración de claves API, Microsoft, ETC.
 
 ## Instalación
 
@@ -75,8 +76,8 @@ La aplicación estará disponible en `http://localhost:8082`.
 
 ## Documentación de la API
 La documentación interactiva de la API es generada automáticamente por FastAPI y está disponible en:
-- **Swagger UI**: [http://localhost:8082/docs](http://localhost:8082/docs)
-- **ReDoc**: [http://localhost:8082/redoc](http://localhost:8082/redoc)
+- **Swagger UI**: [Swagger UI](http://app.krystaline.es:8082/docs)
+- **ReDoc**: [REDOC](http://app.krystaline.es:8082/redoc)
 
 ## Estructura del Proyecto
 ```
@@ -89,7 +90,8 @@ app-obras-backend/
 │   ├── partes.py       # Endpoints de partes de trabajo
 │   ├── ofertas.py      # Endpoints de ofertas
 │   ├── workers.py      # Endpoints de trabajadores
-│   └── ...
+│   └── ...             # Resto de endpoints
+|
 ├── utils/              # Funciones de utilidad
 ├── main.py             # Punto de entrada de la aplicación
 └── requirements.txt    # Dependencias del proyecto
@@ -102,3 +104,14 @@ La API utiliza autenticación basada en cabeceras. Las peticiones deben incluir 
 
 ## Licencia
 Uso interno exclusivo - Krystaline.
+
+
+## Notas desarrollador
+
+Hola, aquí [Ales](https://github.com/voltios)!
+
+Si estás leyendo esto es porque te ha tocado darle caña a alguna nueva funcionalidad del servidor. 
+
+Si estás leyendo esto, es que has decidido meterle mano al código. ¡Enhorabuena! Este proyecto es un poco caótico, pero funciona. No te asustes si ves código que no tiene sentido, es parte de haber hecho cosas con la IA jeje.
+
+Recuerda que este proyecto está en constante desarrollo, así que no te sorprendas si encuentras código que no tiene sentido o que no funciona. Es parte del proceso de desarrollo.

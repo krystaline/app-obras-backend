@@ -176,7 +176,7 @@ def get_parte_pdf(idParte: int) -> Optional[dict]:
 def crear_parte_app(conn, parte: ParteRecibidoPost):
     cur = conn.cursor()
     sql_query = """
-                INSERT INTO partes_app_obra(idOferta, pdf, idParteERP, idParteAPP, proyecto, oferta, jefe_equipo, telefono,
+                INSERT INTO partes_app_obra(idOferta, pdf, idParteAPP, proyecto, oferta, jefe_equipo, telefono,
                                                         fecha, contacto_obra, comentarios, firma)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
                 """
@@ -187,7 +187,6 @@ def crear_parte_app(conn, parte: ParteRecibidoPost):
     values = (
         parte.idOferta,
         None,
-        parte.idParteERP,
         parte.idParteAPP,
         parte.proyecto,
         parte.oferta,
@@ -285,7 +284,7 @@ def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
         parte.fecha,
         linea.unidades_totales,
     )
-
+    # linea nueva, capitulo 99999
     try:
         cur.execute(sql_query, values)
         print("Linea insertada correctamente en pers_partes_app!")
@@ -448,7 +447,7 @@ def crear_parte_mo_bd(parte: ParteMORecibir):
         parte.comentarios,
         datetime.datetime.strptime(parte.fecha, "%Y-%m-%d").date(),
         datetime.datetime.strptime(parte.fecha, "%Y-%m-%d").date(),
-        "data",  # FIRMA POR IMPLEMENTAR
+        "data",  # FIRMA POR IMPLEMENTAR si va sin firmar va NULL
         parte.idOferta,
     )
     print(valores_insertar)

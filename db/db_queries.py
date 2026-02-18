@@ -178,7 +178,7 @@ def crear_parte_app(conn, parte: ParteRecibidoPost):
     sql_query = """
                 INSERT INTO partes_app_obra(idOferta, pdf, idParteAPP, proyecto, oferta, jefe_equipo, telefono,
                                                         fecha, contacto_obra, comentarios, firma)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
                 """
     # Asegúrate que el campo 'firma' en tu modelo coincide con el de la DB
     # parte.signature es el campo de Pydantic, que se mapea a 'firma' en la DB
@@ -262,14 +262,13 @@ def update_linea_cumulative(conn, linea: LineaPedidoPost, total_realizado: float
 def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
     cur = conn.cursor()
     sql_query = """
-                INSERT INTO pers_partes_app(idParteERP, idParteAPP, idOferta, revision, capitulo, titulo, idlinea, idarticulo,
+                INSERT INTO pers_partes_app(idParteAPP, idOferta, revision, capitulo, titulo, idlinea, idarticulo,
                                             descriparticulo, cantidad, unidadmedida, certificado, fechainsertupdate,
                                             cantidad_total)
-                VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
                 """
     # Ajusta los valores para que coincidan con los campos de LineaPedidoPost y las columnas de tu DB
     values = (
-        parte.idParteERP,  # Usa idParteERP del ParteImprimirPDF
         parte.idParteAPP,
         parte.idOferta,
         1,  # revision, si es un valor fijo

@@ -28,6 +28,7 @@ class ParteRecibidoPost(BaseModel):
     jefe_equipo: str
     pdf: Optional[str]
     idProyecto: Optional[str]
+    revision: Optional[int] = 1
 
 
 # **Modelo ajustado para la impresión de PDF y lectura de DB**
@@ -52,6 +53,7 @@ class ParteImprimirPDF(BaseModel):
     idOferta: int = Field(..., alias="idOferta")
     pdf: Optional[str] = None
     idProyecto: Optional[str] = None
+    revision: Optional[int] = 1
 
     # Configuración para permitir la asignación por nombre de campo de la DB
     class Config:

@@ -177,8 +177,8 @@ def crear_parte_app(conn, parte: ParteRecibidoPost):
     cur = conn.cursor()
     sql_query = """
                 INSERT INTO partes_app_obra(idOferta, pdf, idParteAPP, proyecto, oferta, jefe_equipo, telefono,
-                                                        fecha, contacto_obra, comentarios, firma)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                                                        fecha, contacto_obra, comentarios, firma, revsion)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
                 """
     # Asegúrate que el campo 'firma' en tu modelo coincide con el de la DB
     # parte.signature es el campo de Pydantic, que se mapea a 'firma' en la DB
@@ -196,6 +196,7 @@ def crear_parte_app(conn, parte: ParteRecibidoPost):
         parte.contacto_obra,
         parte.comentarios,
         parte.firma,  # Asegúrate de usar parte.signature
+        parte.revision,
     )
 
     try:
@@ -264,7 +265,7 @@ def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
     sql_query = """
                 INSERT INTO pers_partes_app(idParteAPP, idOferta, revision, capitulo, titulo, idlinea, idarticulo,
                                             descriparticulo, cantidad, unidadmedida, certificado, fechainsertupdate,
-                                            cantidad_total)
+                                            cantidad_total, revision)
                 VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
                 """
     # Ajusta los valores para que coincidan con los campos de LineaPedidoPost y las columnas de tu DB
@@ -282,6 +283,7 @@ def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
         linea.ya_certificado,
         parte.fecha,
         linea.unidades_totales,
+        parte.revision,
     )
     # linea nueva, capitulo 99999
     try:

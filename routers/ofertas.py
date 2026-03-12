@@ -42,8 +42,19 @@ def listar_lineas_oferta(idOferta: int):
         # If None is returned
         if lista_dicts is None:
             return []
-        lista_objetos_linea = [Linea_pedido(**d) for d in lista_dicts]
-        return lista_objetos_linea
+
+        print(lista_dicts)
+        try:
+            # Esto daba error, se ha solucionado cambiando el tipo de datos en la entidad Linea_pedido
+            # Lo siguiente es ver cómo filtrar los datos bien (sacar datos de pers_partes_app y
+            # comprobar si están, sacando el IdParteERP)
+            lista_objetos_linea = [Linea_pedido(**d) for d in lista_dicts]
+            print("### LISTA OBJETOS LINEA ###")
+            print(lista_objetos_linea)
+            print("###")
+            return lista_objetos_linea
+        except Exception as e:
+            print(e)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error listing lineas for oferta {idOferta}: {e}"
@@ -54,7 +65,11 @@ def listar_lineas_oferta(idOferta: int):
 def listar_lineas_ejecutadas(idOferta: int):
     # Endpoint para devolver líneas crudas de pers_partes_app
     try:
-        return get_lineas_con_oferta(idOferta)
+        # ahora vamos a listar:
+        # - líneas del ERP: vw_lineas_oferta
+        # - líneas de la app: pers_partes_app
+        data = get_lineas_con_oferta(idOferta)
+        return data
     except Exception as e:
         raise HTTPException(
             status_code=500,

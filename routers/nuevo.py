@@ -21,7 +21,7 @@ def crear_parte_nuevo_flujo(parte: ParteRecibidoPost):
         #  y ya el funcionamiento es el que tiene que ser.
         #
         input_id = input(
-            f"Introduce el ID ERP para el parte APP {parte.idParteAPP} (Enter para usar 0) - (No va a funcionar, lo hemos cambiado para probarrr): "
+            f"Introduce el ID ERP para el parte APP {parte.idParteAPP} (NO SIRVE DE NADA, SOLO PARA IR CON CALMA): "
         )
         if not input_id:
             input_id = 0
@@ -29,11 +29,17 @@ def crear_parte_nuevo_flujo(parte: ParteRecibidoPost):
             input_id = int(input_id)
 
         # parte.idParteERP = input_id
+        print("##### Aqui tiene que salir vacío #####")
         print(f"Asignado idParteERP: {parte.idParteERP}")
+        print("##### Aqui tiene que salir vacío #####")
 
         # Procesar firma y crear parte (reutilizando lógica existente)
         handle_signature(parte)
         create_parte(parte)
+
+        print("##### Aqui tiene que salir el idParteERP #####")
+        print(f"Asignado idParteERP: {parte.idParteERP}")
+        print("##### Aqui tiene que salir el idParteERP #####")
         print(
             "nos saltamos el update id parte ERP porque debería actualizarlo el trigger, no?"
         )

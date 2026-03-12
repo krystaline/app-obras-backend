@@ -4,8 +4,8 @@ from pydantic import ConfigDict, BaseModel, Field
 
 
 class Linea_pedido(BaseModel):
-    ocl_IdOferta: str
-    ocl_idlinea: str
+    ocl_IdOferta: int
+    ocl_idlinea: int
     ocl_revision: int
     occ_SerieOferta: Optional[int] = None
     occ_idproyecto: Optional[str] = None
@@ -13,7 +13,7 @@ class Linea_pedido(BaseModel):
     ocl_Descrip: Optional[str] = None
     ocl_Cantidad: Optional[float] = None
     ocl_UnidadesPres: Optional[float] = None
-    ppcl_IdParte: Optional[str] = None
+    ppcl_IdParte: Optional[int] = None
     ppcl_Capitulo: Optional[str] = None
     ocl_tipoUnidad: Optional[str] = None
     ppcl_cantidad: Optional[float] = None

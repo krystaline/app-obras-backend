@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from routers import partes, ofertas, media, mano_obra, workers, general, nuevo
 from dependencies import verify_auth_headers
+import uvicorn
 
 origins = [
     "http://localhost.tiangolo.com",
@@ -33,6 +34,4 @@ app.include_router(
 app.include_router(nuevo.router, dependencies=[Depends(verify_auth_headers)])
 
 if __name__ == "__main__":
-    import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8082, reload=True)

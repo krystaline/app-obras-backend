@@ -11,13 +11,19 @@ def get_linea_por_oferta(idOferta: int):
         cursor = conn.cursor()
         # Revisa el nombre de tu tabla y columnas
         sql_query = """ SELECT *
-                        FROM Lineas_Oferta
+                        FROM vw_lineas_oferta
                         WHERE ocl_idOferta = ?
                           and ocl_idArticulo like 'MO%' """
         cursor.execute(sql_query, idOferta)
         rows = cursor.fetchall()
         columns = [column[0] for column in cursor.description]
         data = [dict(zip(columns, row)) for row in rows]
+        print("###")
+        print("YO SOY EL QUE PETO")
+        print(data)
+        print("YO NO SOY EL QUE PETO")
+        print("###")
+
         return data
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]
@@ -28,17 +34,42 @@ def get_linea_por_oferta(idOferta: int):
         conn.close()
 
 
-def get_lineas():
+def get_nuevas_lineas():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
+        # pinga
+        # vw_lineas_oferta
         sql_query = """ SELECT *
-                        FROM Lineas_Oferta
+                        FROM vw_lineas_oferta
                         where ocl_idArticulo like 'MO%'"""
         cursor.execute(sql_query)
         rows = cursor.fetchall()
         columns = [column[0] for column in cursor.description]
         data = [dict(zip(columns, row)) for row in rows]
+        # print(data[-1])
+        return data
+    except pyodbc.Error as ex:
+        print(ex.args[0])
+        print(ex.args[1])
+    finally:
+        conn.close()
+
+
+def get_lineas():
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        # pinga
+        # vw_lineas_oferta
+        sql_query = """ SELECT *
+                        FROM vw_lineas_oferta
+                        where ocl_idArticulo like 'MO%'"""
+        cursor.execute(sql_query)
+        rows = cursor.fetchall()
+        columns = [column[0] for column in cursor.description]
+        data = [dict(zip(columns, row)) for row in rows]
+        # print(data)
         return data
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]
@@ -53,8 +84,9 @@ def get_ofertas():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
+        # hecho OK
         sql_query = """ SELECT *
-                        FROM Ofertas
+                        FROM ofertas
                         where revision = 1
                         ORDER BY idOferta DESC """
         cursor.execute(sql_query)
@@ -63,7 +95,9 @@ def get_ofertas():
         data = [dict(zip(columns, row)) for row in rows]
         lineas = get_lineas()
         ids_con_lineas = {
-            linea["ocl_IdOferta"] for linea in lineas if "ocl_IdOferta" in linea
+            str(linea["ocl_IdOferta"])
+            for linea in lineas
+            if linea.get("ocl_IdOferta") is not None
         }
         ofertas_filtradas = [
             oferta

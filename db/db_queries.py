@@ -1,11 +1,10 @@
+from db.db_connection import get_nuevas_lineas
 import datetime
 import uuid
 from typing import List, Optional
 from dotenv import load_dotenv
-from psycopg2._psycopg import cursor
 from pyodbc import Error
 from exceptions import DatabaseError
-
 from db.database import get_db_connection
 from dto.ParteDTO import ParteImprimirPDF, ParteRecibidoPost
 from entities.LineaPedido import LineaPedidoPost
@@ -26,8 +25,27 @@ def test_connection():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        return cursor.fetchall()
+        cursor.execute(
+            # pinga
+            # este no lo cambio porque es test
+            "SELECT * from vw_ofertas where revision = 1 order by idOferta DESC"
+        )
+        rows = cursor.fetchall()
+        data = []
+        if rows:
+            columns = [description[0] for description in cursor.description]
+            for row in rows:
+                data.append(dict(zip(columns, row)))
+
+        lineas = get_nuevas_lineas()
+        lin = {
+            str(linea["ocl_IdOferta"])
+            for linea in lineas
+            if linea.get("ocl_IdOferta") is not None
+        }
+        filtered_data = [d for d in data if str(d.get("idOferta", "")) in lin]
+        return filtered_data
+
     finally:
         conn.close()  # Asegúrate de cerrar la conexión
 
@@ -35,10 +53,14 @@ def test_connection():
 def get_lineas_con_oferta(idOferta: int) -> List[dict]:
     conn = get_db_connection()
     try:
+        # este devuelve todas las líneas del ERP
+        # pinga
         sql_query = """
                     SELECT *
-                    FROM pers_partes_app
-                    WHERE idOferta = ?
+                    FROM vw_lineas_oferta
+                    WHERE ocl_idOferta = ?
+                    and ocl_idArticulo like 'MO%'
+
                     """
         cursor = conn.cursor()
         cursor.execute(sql_query, (idOferta,))
@@ -114,6 +136,7 @@ def create_parte(parte: ParteRecibidoPost):
     return parte
 
 
+# QUITAR
 def update_idParteERP(parte: ParteRecibidoPost):
     conn = get_db_connection()
     try:
@@ -177,9 +200,8 @@ def crear_parte_app(conn, parte: ParteRecibidoPost):
     cur = conn.cursor()
     sql_query = """
                 INSERT INTO partes_app_obra(idOferta, pdf, idParteAPP, proyecto, oferta, jefe_equipo, telefono,
-                                                        fecha, contacto_obra, comentarios, firma, revsion)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
-                """
+                                                        fecha, contacto_obra, comentarios, firma, revision)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) """
     # Asegúrate que el campo 'firma' en tu modelo coincide con el de la DB
     # parte.signature es el campo de Pydantic, que se mapea a 'firma' en la DB
     # parte.fecha puede necesitar ser convertido a string si la DB lo espera como string,
@@ -263,16 +285,15 @@ def update_linea_cumulative(conn, linea: LineaPedidoPost, total_realizado: float
 def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
     cur = conn.cursor()
     sql_query = """
-                INSERT INTO pers_partes_app(idParteAPP, idOferta, revision, capitulo, titulo, idlinea, idarticulo,
+                INSERT INTO pers_partes_app(idParteAPP, idOferta, capitulo, titulo, idlinea, idarticulo,
                                             descriparticulo, cantidad, unidadmedida, certificado, fechainsertupdate,
-                                            cantidad_total, revision)
-                VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                                            cantidad_total, revision, id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) \
                 """
     # Ajusta los valores para que coincidan con los campos de LineaPedidoPost y las columnas de tu DB
     values = (
         parte.idParteAPP,
         parte.idOferta,
-        1,  # revision, si es un valor fijo
         linea.capitulo,  # del DTO LineaPedidoPost
         "Titulo del Capitulo",  # Si es fijo o viene de alguna parte
         linea.id_linea,  # id de la linea (LineaPedidoPost)
@@ -283,7 +304,8 @@ def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
         linea.ya_certificado,
         parte.fecha,
         linea.unidades_totales,
-        parte.revision,
+        parte.revision,  # tenemos revision
+        linea.id_linea,
     )
     # linea nueva, capitulo 99999
     try:
@@ -297,15 +319,17 @@ def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
 def get_lineas_pdf(parteId: int) -> List[dict]:
     conn = get_db_connection()
     try:
+        # pinga
+        # vw_lineas_oferta
         cur = conn.cursor()
-        # Asegúrate que los AS coincidan EXACTAMENTE con los nombres de campo en LineaPedidoPDF
+        # ESTO TENGO QUE CAMBIARLO POR LA VISTA DE LAS ¿LÍNEAS?
         q = """
             SELECT  id,
                     IdLinea         AS id_linea,
                     DescripArticulo AS descripcion,
                     cantidad        AS cantidad,
                     UnidadMedida    AS unidadMedida
-            FROM pers_partes_app
+            FROM vw_lineas_oferta
             WHERE idParteAPP = ? \
             """
         cur.execute(q, (parteId,))

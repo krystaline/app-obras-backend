@@ -11,6 +11,7 @@ class ParteDTO(BaseModel):
     firma: str = ""
 
 
+# modelo :
 class ParteRecibidoPost(BaseModel):
     idOferta: int
     idParteERP: Optional[int]

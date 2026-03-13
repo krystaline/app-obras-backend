@@ -129,3 +129,28 @@ def get_num_parte():
         return cursor.fetchval()
     finally:
         conn.close()
+
+
+def get_lineas_enriquecidas(idOferta: int):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        sql_query = """ SELECT
+  v.*,
+  p.idParteAPP,
+  p.idLinea,
+  p.cantidad,
+  p.certificado,
+  p.fechainsertupdate
+FROM dbo.vw_lineas_oferta v
+LEFT JOIN Partes.dbo.pers_partes_app p
+  ON v.ocl_IdOferta = p.idOferta
+  AND v.ocl_idlinea = p.idLinea
+ORDER BY v.ocl_IdOferta, v.ocl_idlinea, p.idParteAPP; """
+        cursor.execute(sql_query, idOferta)
+        rows = cursor.fetchall()
+        columns = [column[0] for column in cursor.description]
+        data = [dict(zip(columns, row)) for row in rows]
+        return data
+    finally:
+        conn.close()

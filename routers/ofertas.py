@@ -96,3 +96,13 @@ def listar_linea_oferta(idOferta: int, idlinea: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting linea: {e}")
+
+
+@router.get("/{idOferta}/lineasEnriquecidas")
+def listar_lineas_enriquecidas(idOferta: int):
+    try:
+        return "niga"
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error listing lineas for oferta {idOferta}: {e}"
+        )

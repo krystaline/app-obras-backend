@@ -9,16 +9,6 @@ from exceptions import DatabaseError
 load_dotenv()
 
 
-def test_connection():
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        return cursor.fetchall()
-    finally:
-        conn.close()  # Asegúrate de cerrar la conexión
-
-
 def get_partes_mo_db(idOferta: int, accessToken: str, user: str):
     conn = get_db_connection()
     try:

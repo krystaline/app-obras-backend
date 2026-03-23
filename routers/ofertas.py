@@ -2,7 +2,7 @@ from db.db_queries import get_lineas_con_oferta
 from fastapi import APIRouter, HTTPException, status
 
 from entities.LineaPedido import Linea_pedido
-from db.db_connection import get_linea_por_oferta, get_lineas
+from db.db_connection import get_linea_por_oferta, get_lineas, get_lineas_enriquecidas
 from utils.mappers import parse_ofertas
 
 router = APIRouter(
@@ -79,8 +79,6 @@ def listar_lineas_ejecutadas(idOferta: int):
 
 @router.get("/lineas/{idOferta}/{idlinea}", status_code=status.HTTP_200_OK)
 def listar_linea_oferta(idOferta: int, idlinea: int):
-    # Removed async
-    # Using the cached list as per original main.py logic
     try:
         lista_lineas = get_cached_lineas()
         for linea in lista_lineas:
@@ -101,7 +99,8 @@ def listar_linea_oferta(idOferta: int, idlinea: int):
 @router.get("/{idOferta}/lineasEnriquecidas")
 def listar_lineas_enriquecidas(idOferta: int):
     try:
-        return "niga"
+        lista_enriquecidas = get_lineas_enriquecidas(idOferta)
+        return lista_enriquecidas
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error listing lineas for oferta {idOferta}: {e}"

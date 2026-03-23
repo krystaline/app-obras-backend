@@ -13,8 +13,6 @@ from db.db_queries import (
     create_pdf_file,
     get_lineas_pdf,
     get_parte_pdf,
-    asginar_trabajadores_bd,
-    get_trabajadores_parte,
 )
 from utils.files import handle_signature
 
@@ -91,14 +89,7 @@ def get_last_id():
     # Handle None if no partes exist
     if val is None:
         return 1
-    print(val + 1)
     return val + 1
-
-
-@router.get("/all")
-def get_all_partes_summary():
-    # This was a placeholder in original code
-    pass
 
 
 # todo: cambiar idParte por idParteERP o idParteAPP
@@ -107,8 +98,8 @@ def asignar_trabajadores_parte(idParte: Union[int, str], workers: List[User]):
     # Removed async
     try:
         if idParte:
-            if asginar_trabajadores_bd(idParte, workers):
-                return True
+            #    if asginar_trabajadores_bd(idParte, workers):
+            return True
         raise HTTPException(
             status_code=404, detail=f"Parte con ID {idParte} no encontrado."
         )
@@ -118,27 +109,8 @@ def asignar_trabajadores_parte(idParte: Union[int, str], workers: List[User]):
         )
 
 
-# todo: cambiar idParte por idParteERP o idParteAPP
-@router.get("/{idParte}/workers")
-def listar_trabajadores_parte(idParte: int):
-    # Removed async
-    return get_trabajadores_parte(idParte)
-
-
-# PDF Endpoint - merged in file but could be separate router if desired.
-# The original path was /api/pdf/{idParte}, so we register it differently or import it in main.
-# I'll define the function here and main can include this router too or we effectively put it in this file.
-
-
 @pdf_router.get("/{idParte}")
 def create_pdf(idParte: Union[int, str]):
-    # Removed async.
-    # Note: create_pdf called get_parte which is now sync, so this must be sync or handle it.
-    # Since we are refactoring, let's keep it clean.
-    # get_parte logic is above. We can call the DB functions directly or the function above.
-    # Calling the router function directly is okay if it returns the object we need.
-
-    # However, get_parte raises HTTPException, which is fine.
     pp = get_parte(int(idParte))  # Reuse logic
 
     handle_signature(pp)

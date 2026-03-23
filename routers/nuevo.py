@@ -1,4 +1,3 @@
-from db.db_queries import update_idParteERP
 from fastapi import APIRouter, HTTPException, status
 from dto.ParteDTO import ParteRecibidoPost
 from db.db_queries import create_parte
@@ -11,15 +10,8 @@ router = APIRouter(prefix="/api/partes", tags=["nuevo"])
 def crear_parte_nuevo_flujo(parte: ParteRecibidoPost):
     print(f"Recibida petición para crear parte: {parte.idParteAPP}")
 
-    # Interacción por terminal solicitada
     try:
-        # cambiar por:
-        # cuando yo meto el parte en la bd lo hago sin idParteERP
-        #  luego axium mete el parte en su bd o me tira exception
-        #   falseo llamada? necesito tiempo para que se actualice
-        #  una vez puesto el id, necesito saberlo. ¿Cómo?
-        #  y ya el funcionamiento es el que tiene que ser.
-        #
+        # esto lo tengo que quitar, no hace falta esperar, está como "breakpoint"
         input_id = input(
             f"Introduce el ID ERP para el parte APP {parte.idParteAPP} (NO SIRVE DE NADA, SOLO PARA IR CON CALMA): "
         )
@@ -28,22 +20,9 @@ def crear_parte_nuevo_flujo(parte: ParteRecibidoPost):
         else:
             input_id = int(input_id)
 
-        # parte.idParteERP = input_id
-        print("##### Aqui tiene que salir vacío #####")
-        print(f"Asignado idParteERP: {parte.idParteERP}")
-        print("##### Aqui tiene que salir vacío #####")
-
         # Procesar firma y crear parte (reutilizando lógica existente)
         handle_signature(parte)
         create_parte(parte)
-
-        print("##### Aqui tiene que salir el idParteERP #####")
-        print(f"Asignado idParteERP: {parte.idParteERP}")
-        print("##### Aqui tiene que salir el idParteERP #####")
-        print(
-            "nos saltamos el update id parte ERP porque debería actualizarlo el trigger, no?"
-        )
-        # update_idParteERP(parte)
 
         return {"message": "OK", "idParteERP": parte.idParteERP}
 

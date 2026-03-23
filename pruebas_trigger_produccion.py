@@ -35,13 +35,19 @@ def insertar_parte_en_erp(parte_datos: dict) -> int:
     try:
         # Se omite idParteERP en el INSERT para que el trigger/identity lo genere.
         query = """
+        SET NOCOUNT ON;
         INSERT INTO pers_partes_app (
             idParteAPP, idOferta, revision, capitulo, titulo, 
             idlinea, idarticulo, descriparticulo, cantidad, 
             unidadmedida, certificado, fechainsertupdate, cantidad_total, pathCapitulo
         )
-        OUTPUT INSERTED.idParteERP
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        
+        -- Si el ID lo genera un IDENTITY:
+        SELECT SCOPE_IDENTITY() AS nuevo_id;
+        
+        -- Si el ID lo genera el TRIGGER en el campo idParteERP:
+        -- SELECT TOP 1 idParteERP FROM pers_partes_app WHERE idParteAPP = ? ORDER BY fechainsertupdate DESC;
         """
 
         values = (
@@ -64,23 +70,23 @@ def insertar_parte_en_erp(parte_datos: dict) -> int:
         print("Ejecutando INSERT en pers_partes_app...")
         cursor.execute(query, values)
 
+        # Recuperamos el valor
         row = cursor.fetchone()
-        if row:
-            nuevo_id = row[0]
-            print(f"Inserción exitosa. Nuevo idParteERP: {nuevo_id}")
+
+        if row and row[0]:
+            nuevo_id = int(row[0])
             conn.commit()
+            print(f"Inserción exitosa. Nuevo idParteERP: {nuevo_id}")
             return nuevo_id
         else:
-            # En caso de que no devuelva nada (pero no falle)
-            conn.rollback()
-            raise Exception("La inserción no devolvió ningún idParteERP.")
+            raise Exception("No se pudo recuperar el ID generado por la base de datos.")
 
     except Exception as e:
         conn.rollback()
         print(f"Error en inserción ERP: {e}")
-        # Aquí es donde capturaríamos el error del trigger si falla
         raise
     finally:
+        cursor.close()  # Siempre es buena práctica cerrar el cursor
         conn.close()
 
 

@@ -21,35 +21,6 @@ from fastapi import HTTPException
 load_dotenv()
 
 
-def test_connection():
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            # pinga
-            # este no lo cambio porque es test
-            "SELECT * from vw_ofertas where revision = 1 order by idOferta DESC"
-        )
-        rows = cursor.fetchall()
-        data = []
-        if rows:
-            columns = [description[0] for description in cursor.description]
-            for row in rows:
-                data.append(dict(zip(columns, row)))
-
-        lineas = get_nuevas_lineas()
-        lin = {
-            str(linea["ocl_IdOferta"])
-            for linea in lineas
-            if linea.get("ocl_IdOferta") is not None
-        }
-        filtered_data = [d for d in data if str(d.get("idOferta", "")) in lin]
-        return filtered_data
-
-    finally:
-        conn.close()  # Asegúrate de cerrar la conexión
-
-
 def get_lineas_con_oferta(idOferta: int) -> List[dict]:
     conn = get_db_connection()
     try:
@@ -125,7 +96,6 @@ def create_parte(parte: ParteRecibidoPost):
             print(f"Total realizado para linea {linea.id_linea}: {total_realizado}")
 
             update_linea_cumulative(conn, linea, total_realizado)
-
         conn.commit()  # Asegúrate de hacer commit si autocommit es False o si manejas transacciones
     except Exception as e:
         print(f"Error al crear el parte completo: {e}")
@@ -134,26 +104,6 @@ def create_parte(parte: ParteRecibidoPost):
     finally:
         conn.close()
     return parte
-
-
-# QUITAR
-def update_idParteERP(parte: ParteRecibidoPost):
-    conn = get_db_connection()
-    try:
-        sql_query = """
-                    UPDATE Lineas_Oferta
-                    SET ppcl_IdParte = ?
-                    WHERE idParteAPP = ? \
-                    """
-        cursor = conn.cursor()
-        cursor.execute(sql_query, (parte.idParteERP, parte.idParteAPP))
-        conn.commit()
-    except Exception as e:
-        print(f"Error al actualizar el parte (app): {e}")
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
 
 
 def get_parte_pdf(idParte: int) -> Optional[dict]:
@@ -231,10 +181,6 @@ def crear_parte_app(conn, parte: ParteRecibidoPost):
         raise  # Re-lanza para que la transacción principal pueda hacer rollback
 
 
-# Recibe la conexión como argumento
-
-
-# Recibe la conexión como argumento
 def update_linea_cumulative(conn, linea: LineaPedidoPost, total_realizado: float):
     cur = conn.cursor()
     # Actualizamos Lineas_Oferta.
@@ -277,42 +223,107 @@ def update_linea_cumulative(conn, linea: LineaPedidoPost, total_realizado: float
         print("Linea actualizada correctamente en Lineas_Oferta (Acumulado)!")
     except Exception as e:
         print(f"Error al actualizar linea en Lineas_Oferta: {e}")
-        # No hacemos raise para no interrumpir el flujo principal, ya que pers_partes_app es lo importante ahora.
-        # Pero es bueno loguearlo.
 
 
-# Recibe la conexión como argumento
+def get_last_id():
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        select_query = "SELECT MAX(id) FROM pers_partes_app"
+        cur.execute(select_query)
+        row = cur.fetchone()
+        if row and row[0]:
+            return int(row[0])
+        else:
+            return 0
+    except Exception as e:
+        print(f"Error al obtener el último ID: {e}")
+        return None
+    finally:
+        conn.close()
+
+
 def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
     cur = conn.cursor()
-    sql_query = """
-                INSERT INTO pers_partes_app(idParteAPP, idOferta, capitulo, titulo, idlinea, idarticulo,
-                                            descriparticulo, cantidad, unidadmedida, certificado, fechainsertupdate,
-                                            cantidad_total, revision, id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ) \
-                """
-    # Ajusta los valores para que coincidan con los campos de LineaPedidoPost y las columnas de tu DB
-    values = (
-        parte.idParteAPP,
-        parte.idOferta,
-        linea.capitulo,  # del DTO LineaPedidoPost
-        "Titulo del Capitulo",  # Si es fijo o viene de alguna parte
-        linea.id_linea,  # id de la linea (LineaPedidoPost)
-        linea.idArticulo,
-        linea.descripcion,
-        linea.unidades_puestas_hoy,  # Asumo que es 'cantidad' en pers_partes_app
-        linea.medida,  # Asumo que es 'unidadMedida' en pers_partes_app
-        linea.ya_certificado,
-        parte.fecha,
-        linea.unidades_totales,
-        parte.revision,  # tenemos revision
-        linea.id_linea,
-    )
-    # linea nueva, capitulo 99999
+    ultimo_id = get_last_id()  # Tu función actual está bien
+
     try:
-        cur.execute(sql_query, values)
-        print("Linea insertada correctamente en pers_partes_app!")
+        # 1️⃣ Insertar la línea en pers_partes_app
+        # Asegúrate de que idParteERP se inserte como NULL explícitamente
+        insert_query = """
+        INSERT INTO pers_partes_app (
+            idParteAPP, idOferta, revision, capitulo, 
+            idarticulo, descriparticulo, cantidad,
+            unidadmedida, certificado, fechainsertupdate, cantidad_total, idlinea, id, idParteERP
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
+        """
+        values = (
+            parte.idParteAPP,
+            parte.idOferta,
+            parte.revision,
+            linea.capitulo,
+            linea.idArticulo,
+            linea.descripcion,
+            linea.unidades_puestas_hoy,
+            linea.medida,
+            linea.ya_certificado,
+            parte.fecha,
+            linea.unidades_totales,
+            linea.id_linea,
+            ultimo_id + 1,
+        )
+        cur.execute(insert_query, values)
+
+        # 2️⃣ Limpiar y Firmar el parte
+        # Primero ponemos la firma en algo distinto para asegurar que el Trigger detecte el cambio
+        # y nos aseguramos de que idParteERP sea NULL para que el Trigger no se salte la lógica.
+        prepare_query = """
+        UPDATE partes_app_obra 
+        SET firma = NULL, idParteERP = NULL 
+        WHERE idParteAPP = ? AND idOferta = ? AND revision = ?;
+        """
+        cur.execute(prepare_query, (parte.idParteAPP, parte.idOferta, parte.revision))
+
+        # Ahora sí, disparamos el trigger con la firma real
+        update_query = """
+        UPDATE partes_app_obra 
+        SET firma = ? 
+        WHERE idParteAPP = ? AND idOferta = ? AND revision = ?;
+        """
+        # Usamos un timestamp o algo único si 'FIRMADO_APP' ya existía
+        firma_valor = f"FIRMADO_{datetime.datetime.now().strftime('%H%M%S')}"
+        cur.execute(
+            update_query,
+            (firma_valor, parte.idParteAPP, parte.idOferta, parte.revision),
+        )
+        while cur.nextset():
+            pass
+
+        # 3️⃣ Recuperar el ID (con reintento opcional por si el trigger es lento)
+        select_query = """
+        SELECT idParteERP
+        FROM partes_app_obra
+        WHERE idParteAPP = ? AND idOferta = ? AND revision = ?
+        """
+
+        cur.execute(select_query, (parte.idParteAPP, parte.idOferta, parte.revision))
+        row = cur.fetchone()
+
+        if row and row[0]:
+            nuevo_id_erp = int(row[0])
+            conn.commit()
+            return nuevo_id_erp
+        else:
+            # Si llega aquí, es que el trigger falló internamente
+            # (posiblemente el MAX(IdParte) + 1 dio error en la otra DB)
+            raise Exception(
+                "El trigger se ejecutó pero no actualizó idParteERP. Revisa logs de SQL."
+            )
+
     except Exception as e:
-        print(f"Error al insertar linea en pers_partes_app: {e}")
+        conn.rollback()
+        print(f"Error en transacción: {e}")
         raise
 
 

@@ -280,7 +280,7 @@ def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
         # y nos aseguramos de que idParteERP sea NULL para que el Trigger no se salte la lógica.
         prepare_query = """
         UPDATE partes_app_obra 
-        SET firma = NULL, idParteERP = NULL 
+        SET idParteERP = NULL 
         WHERE idParteAPP = ? AND idOferta = ? AND revision = ?;
         """
         cur.execute(prepare_query, (parte.idParteAPP, parte.idOferta, parte.revision))
@@ -292,7 +292,7 @@ def handle_pers_partes(conn, parte: ParteRecibidoPost, linea: LineaPedidoPost):
         WHERE idParteAPP = ? AND idOferta = ? AND revision = ?;
         """
         # Usamos un timestamp o algo único si 'FIRMADO_APP' ya existía
-        firma_valor = f"FIRMADO_{datetime.datetime.now().strftime('%H%M%S')}"
+        firma_valor = parte.firma
         cur.execute(
             update_query,
             (firma_valor, parte.idParteAPP, parte.idOferta, parte.revision),
@@ -623,7 +623,7 @@ def desplazamientos_intermedios(idParte: str, idDesplazamiento: int, conn):
 
 def get_materiales_db():
     sql_query = """SELECT *
-                   FROM materiales"""
+                   FROM vw_materiales"""
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(sql_query)
@@ -647,7 +647,7 @@ def get_materiales_db():
 
 def get_vehiculos_db():
     sql_query = """SELECT *
-                   FROM vehiculos"""
+                   FROM vw_vehiculos"""
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(sql_query)
@@ -661,6 +661,25 @@ def get_vehiculos_db():
         for row in rows:
             data.append(dict(zip(columns, row)))
 
+        print(data)
+        return data
+
+    except Exception as e:
+        sqlstate = e.args[0]
+        print(f"Database error: {sqlstate}")
+        return None
+
+
+def get_allowed_users():
+    sql_query = """SELECT id FROM allowed_users"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(sql_query)
+    rows = cur.fetchall()
+    try:
+        data = []
+        for row in rows:
+            data.append(row[0])
         return data
 
     except Exception as e:

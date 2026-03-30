@@ -1,3 +1,4 @@
+from db.db_connection import get_lineas_enriquecidas_por_parte
 from db.db_queries import get_lineas_con_oferta
 from fastapi import APIRouter, HTTPException, status
 
@@ -38,20 +39,18 @@ def listar_ofertas():
 def listar_lineas_oferta(idOferta: int):
     # Removed async
     try:
-        lista_dicts = get_linea_por_oferta(idOferta)
+        # lista_dicts = get_linea_por_oferta(idOferta)
+        lista_dicts = get_lineas_enriquecidas_por_parte(idOferta)
         # If None is returned
         if lista_dicts is None:
             return []
 
-        print(lista_dicts)
         try:
             # Esto daba error, se ha solucionado cambiando el tipo de datos en la entidad Linea_pedido
             # Lo siguiente es ver cómo filtrar los datos bien (sacar datos de pers_partes_app y
             # comprobar si están, sacando el IdParteERP)
+            print(lista_dicts)
             lista_objetos_linea = [Linea_pedido(**d) for d in lista_dicts]
-            print("### LISTA OBJETOS LINEA ###")
-            print(lista_objetos_linea)
-            print("###")
             return lista_objetos_linea
         except Exception as e:
             print(e)

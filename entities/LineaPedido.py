@@ -68,13 +68,16 @@ class LineaPedidoPDF(BaseModel):
     id_linea: int = Field(
         ..., alias="IdLinea"
     )  # O el nombre de la columna en la DB para el ID de línea
-    descripcion: str = Field(..., alias="DescripArticulo")
+    descripcion: str = Field(..., alias="descripcion")
     cantidad: float = Field(
         ..., alias="cantidad"
     )  # Este es el campo que se usa en pdf_manager para 'Cant.'
-    unidadMedida: str = Field(
-        ..., alias="UnidadMedida"
+    unidadMedida: Optional[str] = Field(
+        ..., alias="unidadMedida"
     )  # Este es el campo que se usa en pdf_manager para 'Unid.'
+    idParteAPP: int = Field(..., alias="idParteAPP")
+    idParteERP: int = Field(..., alias="idParteERP")
+    idOferta: int = Field(..., alias="ocl_IdOferta")
 
     class Config:
         populate_by_name = True

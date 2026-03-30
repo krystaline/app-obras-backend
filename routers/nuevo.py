@@ -10,6 +10,9 @@ router = APIRouter(prefix="/api/partes", tags=["nuevo"])
 def crear_parte_nuevo_flujo(parte: ParteRecibidoPost):
     print(f"Recibida petición para crear parte: {parte.idParteAPP}")
 
+    print("me lo salto porque funciona y quiero probar")
+    return True
+
     try:
         # esto lo tengo que quitar, no hace falta esperar, está como "breakpoint"
         input_id = input(

@@ -1,3 +1,4 @@
+from db.db_connection import get_lineas_enriquecidas_por_parte
 from typing import List, Union
 from fastapi import APIRouter, HTTPException, status
 from pydantic import ValidationError
@@ -46,6 +47,7 @@ def create_partes(parte: ParteRecibidoPost) -> ParteRecibidoPost:
         )
 
 
+# correa
 @router.get("/parte/{parteId}", status_code=status.HTTP_200_OK)
 def get_parte(parteId: int):
     # Removed async
@@ -57,7 +59,8 @@ def get_parte(parteId: int):
                 detail=f"Parte con ID parteAPP {parteId} no encontrado.",
             )
 
-        lineas_data_list = get_lineas_pdf(parteId)
+        lineas_data_list = get_lineas_enriquecidas_por_parte(parteId)
+        print(lineas_data_list)
         validated_lineas = []
         for line_dict in lineas_data_list:
             try:

@@ -160,3 +160,32 @@ def get_lineas_enriquecidas(idOferta: int):
         return data
     finally:
         conn.close()
+
+
+def get_lineas_enriquecidas_por_parte(idParteAPP: int):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        sql_query = """ SELECT
+              v.ocl_idLinea as id,
+              v.ocl_Descrip as descripcion,
+              v.ocl_UnidadesPres as cantidad,
+              v.ocl_tipoUnidad as unidadMedida,
+              v.ocl_IdOferta as ocl_IdOferta,
+              p.idParteAPP as idParteAPP,
+              p.idLinea as IdLinea,
+              p.idParteERP as idParteERP
+            FROM dbo.vw_lineas_oferta v
+            LEFT JOIN Partes.dbo.pers_partes_app p
+              ON v.ocl_IdOferta = p.idOferta
+              AND v.ocl_idlinea = p.idLinea
+              where p.idParteAPP = ?
+            ORDER BY v.ocl_IdOferta, v.ocl_idlinea, p.idParteAPP; """
+        cursor.execute(sql_query, idParteAPP)
+        rows = cursor.fetchall()
+        columns = [column[0] for column in cursor.description]
+        data = [dict(zip(columns, row)) for row in rows]
+
+        return data
+    finally:
+        conn.close()
